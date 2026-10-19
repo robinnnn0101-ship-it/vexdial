@@ -108,6 +108,37 @@ export function useWebRTC(myAddress: string | null) {
       if (e.streams?.[0]) setRemoteStream(e.streams[0]);
       else if (e.track) setRemoteStream(new MediaStream([e.track]));
     };
+
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: withVideo ? { facingMode: 'user', width: 640, height: 480 } : false
+      });
+    } catch (err) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        alert('Video blocked by wallet. Using audio only.');
+      } catch {
+        alert('Camera/mic blocked.\n\nIn Phantom or Solflare:\n1. Open the site in the system browser (Chrome/Safari)\n2. Or allow permissions in wallet settings\n\nThen try Accept again.');
+        throw err;
+      }
+    }
+    setLocalStream(stream);
+    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    return pc;
+  };
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    pcRef.current = pc;
+    pc.onicecandidate = (e) => {
+      if (e.candidate && socketRef.current && remoteAddressRef.current) {
+        socketRef.current.emit('ice-candidate', { to: remoteAddressRef.current, candidate: e.candidate, callId: callIdRef.current });
+      }
+    };
+    pc.ontrack = (e) => {
+      if (e.streams?.[0]) setRemoteStream(e.streams[0]);
+      else if (e.track) setRemoteStream(new MediaStream([e.track]));
+    };
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: withVideo ? { facingMode: 'user' } : false
@@ -138,6 +169,28 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const acceptCall = async () => {
+    if (!socketRef.current || !remoteAddress || !pendingOfferRef.current) {
+      return alert('Call not ready. Wait a moment and tap Accept again.');
+    }
+    try {
+      const pc = await createPC(true);
+      await pc.setRemoteDescription(pendingOfferRef.current);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socketRef.current.emit('call-answer', { to: remoteAddress, from: myAddress, answer, callId });
+      socketRef.current.emit('join-room', callId);
+      for (const c of pendingCandidates.current) {
+        try { await pc.addIceCandidate(c); } catch {}
+      }
+      pendingCandidates.current = [];
+      pendingOfferRef.current = null;
+      setStatus('connected');
+      setCallStart(Date.now());
+    } catch (e) {
+      alert('Failed to start call. Allow mic/camera or open in Chrome/Safari.');
+      cleanup();
+    }
+  };
     if (!socketRef.current || !remoteAddress || !pendingOfferRef.current) {
       return alert('Call not ready. Wait 2 seconds and try Accept again.');
     }
