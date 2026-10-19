@@ -113,6 +113,23 @@ export default function Home() {
         {!connected ? (
           <div className="bg-gray-900/70 p-12 text-center rounded-2xl border border-cyan-500/20">
             <p className="text-xl mb-4">Connect your Solana wallet</p>
+            <p className="text-sm text-gray-400 mb-4">Your wallet is your phone number</p>
+            {isWalletBrowser && (
+              <div className="bg-yellow-900/50 border border-yellow-600 rounded-lg p-4 mb-4 text-sm">
+                <p className="font-semibold mb-2">You're inside a wallet browser</p>
+                <p>Camera and calls don't work here.</p>
+                <button
+                  onClick={() => window.open(window.location.href, '_blank')}
+                  className="mt-3 px-6 py-2 bg-cyan-600 rounded-full"
+                >
+                  Open in Chrome / Safari
+                </button>
+              </div>
+            )}
+          </div>
+        ) : isRinging ? (
+          <div className="bg-gray-900/70 p-12 text-center rounded-2xl border border-cyan-500/20">
+            <p className="text-xl mb-4">Connect your Solana wallet</p>
             <p className="text-sm text-gray-400">Your wallet is your phone number</p>
           </div>
         ) : isRinging ? (
