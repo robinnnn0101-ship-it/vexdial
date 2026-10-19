@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --neon: #00f5ff;
+  --neon-pink: #ff00aa;
+  --bg: #0a0a0f;
+}
+body {
+  background: var(--bg);
+  color: #e0e0e0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.glass {
+  background: rgba(15, 15, 25, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 245, 255, 0.15);
+  border-radius: 16px;
+}
+.neon-glow {
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.3);
+}
+.neon-text {
+  color: var(--neon);
+  text-shadow: 0 0 10px rgba(0, 245, 255, 0.6);
+}

@@ -1,0 +1,153 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+// presence: address -> { socketId, status, lastSeen }
+const presence = new Map();
+// active calls: roomId -> { participants: Set, started }
+const rooms = new Map();
+
+// Simple .vex name registry (in-memory for now — later on-chain)
+const vexNames = new Map(); // name -> { address, verified, owner }
+const addressToVex = new Map(); // address -> name
+
+function getRoomId(a, b) {
+  return [a, b].sort().join('_');
+}
+
+// ---- .vex Name Service API ----
+app.post('/api/vex/register', (req, res) => {
+  const { name, address } = req.body;
+  if (!name || !address || !name.endsWith('.vex')) {
+    return res.status(400).json({ error: 'Need name.vex and address' });
+  }
+  const clean = name.toLowerCase().replace('.vex', '');
+  if (vexNames.has(clean)) return res.status(409).json({ error: 'Name taken' });
+  vexNames.set(clean, { address, verified: false, owner: address });
+  addressToVex.set(address, clean);
+  res.json({ ok: true, name: clean + '.vex' });
+});
+
+app.get('/api/vex/resolve/:name', (req, res) => {
+  let name = req.params.name.toLowerCase();
+  if (name.endsWith('.vex')) name = name.slice(0, -4);
+  const entry = vexNames.get(name);
+  if (!entry) return res.status(404).json({ error: 'Not found' });
+  res.json({ address: entry.address, verified: entry.verified, name: name + '.vex' });
+});
+
+app.get('/api/vex/reverse/:address', (req, res) => {
+  const name = addressToVex.get(req.params.address);
+  if (!name) return res.json({ name: null });
+  const entry = vexNames.get(name);
+  res.json({ name: name + '.vex', verified: entry?.verified || false });
+});
+
+app.post('/api/vex/verify', (req, res) => {
+  // simple optional verify (later: wallet signature or NFT)
+  const { name, address } = req.body;
+  const clean = name?.toLowerCase().replace('.vex', '');
+  const entry = vexNames.get(clean);
+  if (!entry || entry.address !== address) return res.status(403).json({ error: 'Not owner' });
+  entry.verified = true;
+  res.json({ ok: true, verified: true });
+});
+
+app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size, names: vexNames.size }));
+
+io.on('connection', (socket) => {
+  console.log('connected:', socket.id);
+
+  socket.on('register', ({ address, status = 'online' }) => {
+    if (!address) return;
+    presence.set(address, { socketId: socket.id, status, lastSeen: Date.now() });
+    socket.data.address = address;
+    socket.join(address);
+    io.emit('presence-update', Object.fromEntries(presence));
+    console.log('registered:', address);
+  });
+
+  socket.on('set-status', (status) => {
+    const addr = socket.data.address;
+    if (addr && presence.has(addr)) {
+      presence.get(addr).status = status;
+      io.emit('presence-update', Object.fromEntries(presence));
+    }
+  });
+
+  socket.on('call-offer', ({ to, from, offer, callId }) => {
+    const target = presence.get(to);
+    if (!target) {
+      socket.emit('call-error', { error: 'User offline' });
+      return;
+    }
+    const roomId = callId || getRoomId(from, to);
+    if (!rooms.has(roomId)) rooms.set(roomId, { participants: new Set([from]), started: Date.now() });
+    rooms.get(roomId).participants.add(from);
+    io.to(target.socketId).emit('incoming-call', { from, offer, callId: roomId });
+  });
+
+  socket.on('call-answer', ({ to, from, answer, callId }) => {
+    const target = presence.get(to);
+    if (target) {
+      const roomId = callId || getRoomId(from, to);
+      if (rooms.has(roomId)) rooms.get(roomId).participants.add(from);
+      io.to(target.socketId).emit('call-answered', { from, answer, callId: roomId });
+    }
+  });
+
+  socket.on('ice-candidate', ({ to, candidate, callId }) => {
+    const target = presence.get(to);
+    if (target) io.to(target.socketId).emit('ice-candidate', { candidate, callId });
+  });
+
+  socket.on('call-reject', ({ to, from, callId }) => {
+    const target = presence.get(to);
+    if (target) io.to(target.socketId).emit('call-rejected', { from, callId });
+    if (callId && rooms.has(callId)) rooms.delete(callId);
+  });
+
+  socket.on('call-hangup', ({ to, from, callId }) => {
+    const target = presence.get(to);
+    if (target) io.to(target.socketId).emit('call-ended', { from, callId });
+    if (callId && rooms.has(callId)) rooms.delete(callId);
+  });
+
+  // in-call chat + reactions
+  socket.on('chat-message', ({ callId, from, text }) => {
+    if (callId && rooms.has(callId)) {
+      io.to(callId).emit('chat-message', { from, text, ts: Date.now() });
+    }
+  });
+
+  socket.on('reaction', ({ callId, from, emoji }) => {
+    if (callId && rooms.has(callId)) {
+      io.to(callId).emit('reaction', { from, emoji, ts: Date.now() });
+    }
+  });
+
+  socket.on('join-room', (callId) => {
+    if (callId) socket.join(callId);
+  });
+
+  socket.on('disconnect', () => {
+    const addr = socket.data.address;
+    if (addr) {
+      presence.delete(addr);
+      io.emit('presence-update', Object.fromEntries(presence));
+      console.log('disconnected:', addr);
+    }
+  });
+});
+
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, '0.0.0.0', () => console.log(`Signaling server on :${PORT}`));
