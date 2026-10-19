@@ -25,7 +25,7 @@ export function useWebRTC(myAddress: string | null) {
   const [callStart, setCallStart] = useState<number | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<any>(null);
   const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const remoteAddressRef = useRef<string | null>(null);
