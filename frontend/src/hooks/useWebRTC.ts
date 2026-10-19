@@ -1,14 +1,12 @@
 'use client';
-// @ts-nocheck
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 
 const SIGNALING = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
 ];
 
 export function useWebRTC(myAddress: string | null) {
@@ -19,76 +17,23 @@ export function useWebRTC(myAddress: string | null) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
-  const [chat, setChat] = useState<{from: string; text: string; ts: number}[]>([]);
-  const [reactions, setReactions] = useState<{from: string; emoji: string; ts: number}[]>([]);
+  const [chat, setChat] = useState<any[]>([]);
+  const [reactions, setReactions] = useState<any[]>([]);
   const [presence, setPresence] = useState<Record<string, any>>({});
   const [callStart, setCallStart] = useState<number | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const socketRef = useRef<any>(null);
-  const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
-  const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
+  const pendingOfferRef = useRef<any>(null);
+  const pendingCandidates = useRef<any[]>([]);
   const remoteAddressRef = useRef<string | null>(null);
   const callIdRef = useRef<string | null>(null);
-  const ringtoneAudio = useRef<any>(null);
-  const ringbackRef = useRef<any>(null);
 
   useEffect(() => { remoteAddressRef.current = remoteAddress; }, [remoteAddress]);
   useEffect(() => { callIdRef.current = callId; }, [callId]);
 
-  const stopRingtone = useCallback(() => {
-    if (ringtoneAudio.current) {
-      try { ringtoneAudio.current.pause?.(); } catch {}
-      ringtoneAudio.current = null;
-    }
-  }, []);
-
-  const stopRingback = useCallback(() => {
-    if (ringbackRef.current) {
-      try { ringbackRef.current.pause?.(); } catch {}
-      ringbackRef.current = null;
-    }
-  }, []);
-
-  const playRingtone = useCallback(() => {
-    stopRingtone();
-    const ctx = new AudioContext();
-    const gain = ctx.createGain();
-    gain.gain.value = 0.1;
-    gain.connect(ctx.destination);
-    const notes = [523, 659, 784, 1046];
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      osc.connect(gain);
-      osc.start(ctx.currentTime + i * 0.3);
-      osc.stop(ctx.currentTime + i * 0.3 + 0.25);
-    });
-    ringtoneAudio.current = { pause: () => { try { ctx.close(); } catch {} } };
-  }, [stopRingtone]);
-
-  const playRingback = useCallback(() => {
-    stopRingback();
-    const ctx = new AudioContext();
-    const gain = ctx.createGain();
-    gain.gain.value = 0.06;
-    gain.connect(ctx.destination);
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = 440;
-    osc.connect(gain);
-    osc.start();
-    ringbackRef.current = { pause: () => { try { osc.stop(); ctx.close(); } catch {} } };
-  }, [stopRingback]);
-
   const cleanup = useCallback(() => {
-    stopRingtone();
-    stopRingback();
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
+    if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
     if (localStream) localStream.getTracks().forEach(t => t.stop());
     setLocalStream(null);
     setRemoteStream(null);
@@ -100,35 +45,37 @@ export function useWebRTC(myAddress: string | null) {
     setReactions([]);
     pendingOfferRef.current = null;
     pendingCandidates.current = [];
-  }, [localStream, stopRingtone, stopRingback]);
+  }, [localStream]);
 
   useEffect(() => {
     if (!myAddress) return;
-    const socket = io(SIGNALING, { transports: ['websocket', 'polling'] });
+    const socket = io(SIGNALING, { transports: ['websocket', 'polling'], reconnection: true });
     socketRef.current = socket;
 
     socket.on('connect', () => {
       socket.emit('register', { address: myAddress, status: 'online' });
     });
-
-    socket.on('presence-update', (p) => setPresence(p));
+    socket.on('reconnect', () => {
+      socket.emit('register', { address: myAddress, status: 'online' });
+    });
+    socket.on('presence-update', (p) => setPresence(p || {}));
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
       setCallId(callId);
       setStatus('ringing');
       pendingOfferRef.current = offer;
-      playRingtone();
     });
 
     socket.on('call-answered', async ({ answer }) => {
-      stopRingback();
       if (pcRef.current) {
         try {
           await pcRef.current.setRemoteDescription(answer);
           setStatus('connected');
           setCallStart(Date.now());
-          for (const c of pendingCandidates.current) await pcRef.current.addIceCandidate(c);
+          for (const c of pendingCandidates.current) {
+            try { await pcRef.current.addIceCandidate(c); } catch {}
+          }
           pendingCandidates.current = [];
         } catch (e) { console.error(e); }
       }
@@ -137,83 +84,44 @@ export function useWebRTC(myAddress: string | null) {
     socket.on('ice-candidate', async ({ candidate }) => {
       if (!candidate) return;
       if (pcRef.current?.remoteDescription) {
-        try { await pcRef.current.addIceCandidate(candidate); } catch { pendingCandidates.current.push(candidate); }
+        try { await pcRef.current.addIceCandidate(candidate); } catch {}
       } else pendingCandidates.current.push(candidate);
     });
 
-    socket.on('call-rejected', () => { stopRingtone(); cleanup(); });
-    socket.on('call-ended', () => { stopRingtone(); cleanup(); });
+    socket.on('call-rejected', cleanup);
+    socket.on('call-ended', cleanup);
     socket.on('chat-message', (msg) => setChat(c => [...c, msg]));
-    socket.on('reaction', (r) => {
-      setReactions(rs => [...rs, r]);
-      setTimeout(() => setReactions(rs => rs.filter(x => x.ts !== r.ts)), 3000);
-    });
     socket.on('call-error', ({ error }) => { alert(error); cleanup(); });
 
     return () => socket.disconnect();
-  }, [myAddress, cleanup, playRingtone, stopRingback]);
+  }, [myAddress]);
 
-  const createPC = useCallback(async (withVideo = true) => {
+  const createPC = async (withVideo = true) => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     pcRef.current = pc;
-
     pc.onicecandidate = (e) => {
       if (e.candidate && socketRef.current && remoteAddressRef.current) {
         socketRef.current.emit('ice-candidate', { to: remoteAddressRef.current, candidate: e.candidate, callId: callIdRef.current });
       }
     };
     pc.ontrack = (e) => {
-      if (e.streams && e.streams[0]) setRemoteStream(e.streams[0]);
+      if (e.streams?.[0]) setRemoteStream(e.streams[0]);
       else if (e.track) setRemoteStream(new MediaStream([e.track]));
     };
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: withVideo ? { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } : false
-      });
-      setLocalStream(stream);
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
-    } catch (err) {
-      alert('Please allow camera & microphone in your browser/wallet settings, then try Accept again.');
-      throw err;
-    }
-    return pc;
-  }, []);
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    pcRef.current = pc;
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate && socketRef.current && remoteAddressRef.current) {
-        socketRef.current.emit('ice-candidate', { to: remoteAddressRef.current, candidate: e.candidate, callId: callIdRef.current });
-      }
-    };
-    pc.ontrack = (e) => {
-      if (e.streams && e.streams[0]) {
-        setRemoteStream(e.streams[0]);
-      } else if (e.track) {
-        const stream = new MediaStream([e.track]);
-        setRemoteStream(stream);
-      }
-    };
-
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: withVideo ? { facingMode: 'user' } : false
-    }).catch((err) => {
-      alert('Camera/mic blocked: ' + err.message + '\n\nOn mobile, allow permissions or try Chrome/Safari instead of wallet browser.');
+    }).catch(err => {
+      alert('Allow camera & mic, then try again.\n\nOn Phantom: open in system browser (Chrome/Safari) for best results.');
       throw err;
-    });
-      audio: true,
-      video: withVideo ? { facingMode: 'user' } : false
     });
     setLocalStream(stream);
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     return pc;
-  }, []);
+  };
 
-  const startCall = useCallback(async (target: string, _tune?: string, withVideo = true) => {
-    if (!socketRef.current || !myAddress) return;
+  const startCall = async (target: string, _t?: string, withVideo = true) => {
+    if (!socketRef.current || !myAddress) return alert('Not connected to server');
     setRemoteAddress(target);
     remoteAddressRef.current = target;
     setStatus('calling');
@@ -226,22 +134,22 @@ export function useWebRTC(myAddress: string | null) {
       callIdRef.current = cid;
       socketRef.current.emit('call-offer', { to: target, from: myAddress, offer, callId: cid });
       socketRef.current.emit('join-room', cid);
-      playRingback();
-    } catch (e) {
-      cleanup();
-    }
-  }, [myAddress, createPC, cleanup, playRingback]);
+    } catch (e) { cleanup(); }
+  };
 
-  const acceptCall = useCallback(async () => {
-    stopRingtone();
+  const acceptCall = async () => {
     if (!socketRef.current || !remoteAddress || !pendingOfferRef.current) {
-      alert('Cannot accept right now. Try again.');
-      return;
+      return alert('Call not ready. Wait 2 seconds and try Accept again.');
     }
     try {
       setStatus('connected');
       setCallStart(Date.now());
-      const pc = await createPC(true);
+      let pc;
+      try {
+        pc = await createPC(true);
+      } catch {
+        pc = await createPC(false);
+      }
       await pc.setRemoteDescription(pendingOfferRef.current);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -252,26 +160,25 @@ export function useWebRTC(myAddress: string | null) {
       }
       pendingCandidates.current = [];
       pendingOfferRef.current = null;
-    } catch (e: any) {
-      alert('Camera/mic permission needed or connection failed. Allow permissions and try again.');
+    } catch (e) {
+      alert('Could not start camera/mic. Allow permissions or open the site in Chrome/Safari (not Phantom browser).');
       cleanup();
     }
-  }, [myAddress, remoteAddress, callId, createPC, cleanup, stopRingtone]);
+  };
 
-  const rejectCall = useCallback(() => {
-    stopRingtone();
+  const rejectCall = () => {
     if (socketRef.current && remoteAddress) {
       socketRef.current.emit('call-reject', { to: remoteAddress, from: myAddress, callId });
     }
     cleanup();
-  }, [myAddress, remoteAddress, callId, cleanup, stopRingtone]);
+  };
 
-  const hangup = useCallback(() => {
+  const hangup = () => {
     if (socketRef.current && remoteAddress) {
       socketRef.current.emit('call-hangup', { to: remoteAddress, from: myAddress, callId });
     }
     cleanup();
-  }, [myAddress, remoteAddress, callId, cleanup]);
+  };
 
   const toggleMute = () => {
     if (localStream) {
@@ -291,11 +198,6 @@ export function useWebRTC(myAddress: string | null) {
       socketRef.current.emit('chat-message', { callId, from: myAddress, text: text.trim() });
     }
   };
-  const sendReaction = (emoji: string) => {
-    if (socketRef.current && callId) {
-      socketRef.current.emit('reaction', { callId, from: myAddress, emoji });
-    }
-  };
 
   const isOnline = (addr: string) => !!presence[addr];
 
@@ -303,6 +205,6 @@ export function useWebRTC(myAddress: string | null) {
     status, remoteAddress, localStream, remoteStream,
     muted, cameraOff, chat, reactions, presence, callStart,
     startCall, acceptCall, rejectCall, hangup,
-    toggleMute, toggleCamera, sendChat, sendReaction, isOnline
+    toggleMute, toggleCamera, sendChat, isOnline
   };
 }
