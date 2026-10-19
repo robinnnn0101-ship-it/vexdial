@@ -163,6 +163,32 @@ export function useWebRTC(myAddress: string | null) {
       }
     };
     pc.ontrack = (e) => {
+      if (e.streams && e.streams[0]) setRemoteStream(e.streams[0]);
+      else if (e.track) setRemoteStream(new MediaStream([e.track]));
+    };
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: withVideo ? { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } : false
+      });
+      setLocalStream(stream);
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    } catch (err) {
+      alert('Please allow camera & microphone in your browser/wallet settings, then try Accept again.');
+      throw err;
+    }
+    return pc;
+  }, []);
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    pcRef.current = pc;
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate && socketRef.current && remoteAddressRef.current) {
+        socketRef.current.emit('ice-candidate', { to: remoteAddressRef.current, candidate: e.candidate, callId: callIdRef.current });
+      }
+    };
+    pc.ontrack = (e) => {
       if (e.streams && e.streams[0]) {
         setRemoteStream(e.streams[0]);
       } else if (e.track) {
@@ -172,6 +198,12 @@ export function useWebRTC(myAddress: string | null) {
     };
 
     const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: withVideo ? { facingMode: 'user' } : false
+    }).catch((err) => {
+      alert('Camera/mic blocked: ' + err.message + '\n\nOn mobile, allow permissions or try Chrome/Safari instead of wallet browser.');
+      throw err;
+    });
       audio: true,
       video: withVideo ? { facingMode: 'user' } : false
     });
@@ -202,20 +234,26 @@ export function useWebRTC(myAddress: string | null) {
 
   const acceptCall = useCallback(async () => {
     stopRingtone();
-    if (!socketRef.current || !remoteAddress || !pendingOfferRef.current) return;
-    setStatus('connected');
-    setCallStart(Date.now());
+    if (!socketRef.current || !remoteAddress || !pendingOfferRef.current) {
+      alert('Cannot accept right now. Try again.');
+      return;
+    }
     try {
+      setStatus('connected');
+      setCallStart(Date.now());
       const pc = await createPC(true);
       await pc.setRemoteDescription(pendingOfferRef.current);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socketRef.current.emit('call-answer', { to: remoteAddress, from: myAddress, answer, callId });
       socketRef.current.emit('join-room', callId);
-      for (const c of pendingCandidates.current) await pc.addIceCandidate(c);
+      for (const c of pendingCandidates.current) {
+        try { await pc.addIceCandidate(c); } catch {}
+      }
       pendingCandidates.current = [];
       pendingOfferRef.current = null;
-    } catch (e) {
+    } catch (e: any) {
+      alert('Camera/mic permission needed or connection failed. Allow permissions and try again.');
       cleanup();
     }
   }, [myAddress, remoteAddress, callId, createPC, cleanup, stopRingtone]);
