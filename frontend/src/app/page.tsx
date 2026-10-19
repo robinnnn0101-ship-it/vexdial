@@ -118,6 +118,23 @@ export default function Home() {
         ) : isRinging ? (
           <div className="bg-gray-900/70 p-8 text-center rounded-2xl border border-cyan-500/20">
             <p className="text-xl mb-4">Incoming call from {webrtc.remoteAddress ? getDisplayName(webrtc.remoteAddress) : '...'}</p>
+            <div className="flex flex-col gap-3 items-center">
+              <div className="flex justify-center gap-4">
+                <button onClick={webrtc.acceptCall} className="px-8 py-3 bg-green-600 rounded-full text-lg">Accept</button>
+                <button onClick={webrtc.rejectCall} className="px-8 py-3 bg-red-600 rounded-full text-lg">Reject</button>
+              </div>
+              <button
+                onClick={() => window.open(window.location.href, '_blank')}
+                className="mt-2 px-6 py-2 bg-cyan-700 rounded-full text-sm"
+              >
+                Open in Browser (if Accept fails)
+              </button>
+              <p className="text-xs text-gray-400 mt-1">Wallet browsers block camera/mic. Use Chrome or Safari for calls.</p>
+            </div>
+          </div>
+        ) : inCall ? (
+          <div className="bg-gray-900/70 p-8 text-center rounded-2xl border border-cyan-500/20">
+            <p className="text-xl mb-4">Incoming call from {webrtc.remoteAddress ? getDisplayName(webrtc.remoteAddress) : '...'}</p>
             <div className="flex justify-center gap-4">
               <button onClick={webrtc.acceptCall} className="px-8 py-3 bg-green-600 rounded-full text-lg">Accept</button>
               <button onClick={webrtc.rejectCall} className="px-8 py-3 bg-red-600 rounded-full text-lg">Reject</button>
