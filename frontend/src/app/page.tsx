@@ -14,9 +14,15 @@ export default function Home() {
   const [history, setHistory] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [duration, setDuration] = useState(0);
+  const [isMobileWallet, setIsMobileWallet] = useState(false);
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const ua = navigator.userAgent || '';
+    setIsMobileWallet(/Phantom|Solflare|Trust/i.test(ua));
+  }, []);
 
   useEffect(() => {
     setContacts(JSON.parse(localStorage.getItem('vexdial-contacts') || '[]'));
@@ -72,6 +78,14 @@ export default function Home() {
       <h1 className="text-5xl font-bold text-cyan-400 mb-2">VexDial</h1>
       <p className="text-gray-400 mb-6">Wallet-to-wallet encrypted calls</p>
       <WalletMultiButton />
+      {isMobileWallet && (
+        <button
+          onClick={() => window.open(window.location.href, '_blank')}
+          className="mt-4 px-6 py-2 bg-cyan-600 rounded-full text-sm"
+        >
+          Open in Chrome / Safari
+        </button>
+      )}
       <a href="https://x.com/VexDial" target="_blank" className="mt-6 text-sm text-cyan-400 hover:underline">@VexDial</a>
     </div>
   );
@@ -85,6 +99,14 @@ export default function Home() {
           <button onClick={webrtc.acceptCall} className="px-10 py-3 bg-green-600 rounded-full text-lg font-semibold">Accept</button>
           <button onClick={webrtc.rejectCall} className="px-10 py-3 bg-red-600 rounded-full text-lg font-semibold">Reject</button>
         </div>
+        {isMobileWallet && (
+          <button
+            onClick={() => window.open(window.location.href, '_blank')}
+            className="mt-4 px-6 py-2 bg-cyan-700 rounded-full text-sm"
+          >
+            Open in Browser
+          </button>
+        )}
       </div>
     </div>
   );
