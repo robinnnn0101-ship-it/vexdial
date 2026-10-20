@@ -153,7 +153,15 @@ export default function Home() {
             <h1 className="text-3xl font-bold text-cyan-400">VexDial</h1>
             <a href="https://x.com/VexDial" target="_blank" className="text-xs text-cyan-400 hover:underline">@VexDial</a>
           </div>
-          <WalletMultiButton />
+          <div className="flex items-center">
+            <WalletMultiButton />
+            <button
+              onClick={() => window.location.reload()}
+              className="ml-2 px-3 py-1 text-xs bg-gray-700 rounded"
+            >
+              Reconnect
+            </button>
+          </div>
         </header>
 
         <div className="flex gap-2 mb-4">
