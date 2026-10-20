@@ -1,9 +1,8 @@
 'use client';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 
 const SIGNALING = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
-
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
@@ -18,8 +17,6 @@ export function useWebRTC(myAddress: string | null) {
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [chat, setChat] = useState<any[]>([]);
-  const [reactions, setReactions] = useState<any[]>([]);
-  const [presence, setPresence] = useState<Record<string, any>>({});
   const [callStart, setCallStart] = useState<number | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -32,7 +29,7 @@ export function useWebRTC(myAddress: string | null) {
   useEffect(() => { remoteAddressRef.current = remoteAddress; }, [remoteAddress]);
   useEffect(() => { callIdRef.current = callId; }, [callId]);
 
-  const cleanup = useCallback(() => {
+  const cleanup = () => {
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
     if (localStream) localStream.getTracks().forEach(t => t.stop());
     setLocalStream(null);
@@ -42,27 +39,21 @@ export function useWebRTC(myAddress: string | null) {
     setCallId(null);
     setCallStart(null);
     setChat([]);
-    setReactions([]);
     pendingOfferRef.current = null;
     pendingCandidates.current = [];
-  }, [localStream]);
+  };
 
   useEffect(() => {
     if (!myAddress) return;
     const socket = io(SIGNALING, { transports: ['websocket', 'polling'], reconnection: true });
     socketRef.current = socket;
 
-    socket.on('connect', () => {
-      socket.emit('register', { address: myAddress, status: 'online' });
-    });
-    socket.on('reconnect', () => {
-      socket.emit('register', { address: myAddress, status: 'online' });
-    });
-    socket.on('presence-update', (p) => setPresence(p || {}));
+    socket.on('connect', () => socket.emit('register', { address: myAddress, status: 'online' }));
+    socket.on('reconnect', () => socket.emit('register', { address: myAddress, status: 'online' }));
 
-    socket.on('incoming-call', ({ from, offer, callId }) => {
+    socket.on('incoming-call', ({ from, offer, callId: cid }) => {
       setRemoteAddress(from);
-      setCallId(callId);
+      setCallId(cid);
       setStatus('ringing');
       pendingOfferRef.current = offer;
     });
@@ -99,38 +90,32 @@ export function useWebRTC(myAddress: string | null) {
   const createPC = async (withVideo = true) => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     pcRef.current = pc;
+
     pc.onicecandidate = (e) => {
       if (e.candidate && socketRef.current && remoteAddressRef.current) {
         socketRef.current.emit('ice-candidate', { to: remoteAddressRef.current, candidate: e.candidate, callId: callIdRef.current });
       }
     };
+
     pc.ontrack = (e) => {
-      if (e.streams?.[0]) setRemoteStream(e.streams[0]);
-      else if (e.track) setRemoteStream(new MediaStream([e.track]));
+      if (e.streams && e.streams[0]) {
+        setRemoteStream(e.streams[0]);
+      } else if (e.track) {
+        setRemoteStream(new MediaStream([e.track]));
+      }
     };
 
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: withVideo ? { facingMode: 'user', width: 640, height: 480 } : false
-      });
-    } catch (err) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        alert('Video blocked. Using audio only.');
-      } catch {
-        alert('Camera/mic blocked. Allow permissions or open in Chrome/Safari.');
-        throw err;
-      }
-    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: withVideo ? { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } : false
+    });
     setLocalStream(stream);
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     return pc;
   };
 
-  const startCall = async (target: string, _t?: string, withVideo = true) => {
-    if (!socketRef.current || !myAddress) return alert('Not connected to server');
+  const startCall = async (target: string, _tune?: string, withVideo = true) => {
+    if (!socketRef.current || !myAddress) return alert('Not connected');
     setRemoteAddress(target);
     remoteAddressRef.current = target;
     setStatus('calling');
@@ -143,12 +128,15 @@ export function useWebRTC(myAddress: string | null) {
       callIdRef.current = cid;
       socketRef.current.emit('call-offer', { to: target, from: myAddress, offer, callId: cid });
       socketRef.current.emit('join-room', cid);
-    } catch (e) { cleanup(); }
+    } catch (e) {
+      alert('Could not start call. Allow mic/camera.');
+      cleanup();
+    }
   };
 
   const acceptCall = async () => {
     if (!socketRef.current || !remoteAddress || !pendingOfferRef.current) {
-      return alert('Call not ready. Try again.');
+      return alert('Call not ready');
     }
     try {
       const pc = await createPC(true);
@@ -165,7 +153,7 @@ export function useWebRTC(myAddress: string | null) {
       setStatus('connected');
       setCallStart(Date.now());
     } catch (e) {
-      alert('Could not start media. Allow permissions or open in Chrome/Safari.');
+      alert('Allow camera & microphone, then try again');
       cleanup();
     }
   };
@@ -190,6 +178,7 @@ export function useWebRTC(myAddress: string | null) {
       setMuted(!muted);
     }
   };
+
   const toggleCamera = () => {
     if (localStream) {
       localStream.getVideoTracks().forEach(t => { t.enabled = cameraOff; });
@@ -199,16 +188,10 @@ export function useWebRTC(myAddress: string | null) {
 
   const startScreenShare = async () => {
     try {
-      const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
       const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
       if (sender) await sender.replaceTrack(screen.getVideoTracks()[0]);
-      screen.getVideoTracks()[0].onended = () => {
-        const cam = localStream?.getVideoTracks()[0];
-        if (cam && sender) sender.replaceTrack(cam);
-      };
-    } catch (e) {
-      alert('Screen share cancelled or not allowed');
-    }
+    } catch {}
   };
 
   const sendChat = (text: string) => {
@@ -217,12 +200,10 @@ export function useWebRTC(myAddress: string | null) {
     }
   };
 
-  const isOnline = (addr: string) => !!presence[addr];
-
   return {
     status, remoteAddress, localStream, remoteStream,
-    muted, cameraOff, chat, reactions, presence, callStart,
+    muted, cameraOff, chat, callStart,
     startCall, acceptCall, rejectCall, hangup,
-    toggleMute, toggleCamera, sendChat, isOnline, startScreenShare
+    toggleMute, toggleCamera, sendChat, startScreenShare
   };
 }
