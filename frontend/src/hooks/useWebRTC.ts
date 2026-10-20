@@ -51,9 +51,14 @@ export function useWebRTC(myAddress: string | null) {
 
   useEffect(() => {
     if (!myAddress) return;
-    const socket = io(SIGNALING);
+    const socket = io(SIGNALING, { transports: ['websocket', 'polling'], reconnection: true });
     socketRef.current = socket;
-    socket.emit('register', { address: myAddress, status: 'online' });
+    socket.on('connect', () => {
+      socket.emit('register', { address: myAddress, status: 'online' });
+    });
+    socket.on('reconnect', () => {
+      socket.emit('register', { address: myAddress, status: 'online' });
+    });
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
