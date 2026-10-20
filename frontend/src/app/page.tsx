@@ -14,16 +14,19 @@ export default function Home() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [myVexName, setMyVexName] = useState<string | null>(null);
-  const [callerTune, setCallerTune] = useState('classic');
-  const [withVideo, setWithVideo] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
   const [chatInput, setChatInput] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [isWalletBrowser, setIsWalletBrowser] = useState(false);
   const localVideo = useRef<HTMLVideoElement>(null);
   const remoteVideo = useRef<HTMLVideoElement>(null);
   const remoteAudio = useRef<HTMLAudioElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    const ua = navigator.userAgent || '';
+    setIsWalletBrowser(/Phantom|Solflare|Trust/i.test(ua));
+  }, []);
 
   useEffect(() => {
     setContacts(JSON.parse(localStorage.getItem('vexdial-contacts') || '[]'));
@@ -65,7 +68,7 @@ export default function Home() {
     return c?.name || (addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : '');
   };
 
-  const handleCall = async () => {
+  const handleCall = async (video = false) => {
     let addr = target.trim();
     if (addr.endsWith('.sol') || addr.endsWith('.sns')) {
       const resolved = await resolveSolDomain(addr);
@@ -77,11 +80,11 @@ export default function Home() {
       addr = resolved.address;
     }
     if (!addr || addr.length < 32) return alert('Enter valid address');
-    const log = { address: addr, type: 'outgoing', ts: Date.now(), name: target };
+    const log = { address: addr, type: 'outgoing', ts: Date.now(), name: target, video };
     const next = [log, ...history].slice(0, 50);
     setHistory(next);
     localStorage.setItem('vexdial-history', JSON.stringify(next));
-    webrtc.startCall(addr, undefined, withVideo);
+    webrtc.startCall(addr, undefined, video);
   };
 
   const addContact = () => {
@@ -117,20 +120,10 @@ export default function Home() {
             {isWalletBrowser && (
               <div className="bg-yellow-900/50 border border-yellow-600 rounded-lg p-4 mb-4 text-sm">
                 <p className="font-semibold mb-2">You're inside a wallet browser</p>
-                <p>Camera and calls don't work here.</p>
-                <button
-                  onClick={() => window.open(window.location.href, '_blank')}
-                  className="mt-3 px-6 py-2 bg-cyan-600 rounded-full"
-                >
-                  Open in Chrome / Safari
-                </button>
+                <p>Camera and calls work better in Chrome/Safari.</p>
+                <button onClick={() => window.open(window.location.href, '_blank')} className="mt-3 px-6 py-2 bg-cyan-600 rounded-full">Open in Browser</button>
               </div>
             )}
-          </div>
-        ) : isRinging ? (
-          <div className="bg-gray-900/70 p-12 text-center rounded-2xl border border-cyan-500/20">
-            <p className="text-xl mb-4">Connect your Solana wallet</p>
-            <p className="text-sm text-gray-400">Your wallet is your phone number</p>
           </div>
         ) : isRinging ? (
           <div className="bg-gray-900/70 p-8 text-center rounded-2xl border border-cyan-500/20">
@@ -140,21 +133,7 @@ export default function Home() {
                 <button onClick={webrtc.acceptCall} className="px-8 py-3 bg-green-600 rounded-full text-lg">Accept</button>
                 <button onClick={webrtc.rejectCall} className="px-8 py-3 bg-red-600 rounded-full text-lg">Reject</button>
               </div>
-              <button
-                onClick={() => window.open(window.location.href, '_blank')}
-                className="mt-2 px-6 py-2 bg-cyan-700 rounded-full text-sm"
-              >
-                Open in Browser (if Accept fails)
-              </button>
-              <p className="text-xs text-gray-400 mt-1">Wallet browsers block camera/mic. Use Chrome or Safari for calls.</p>
-            </div>
-          </div>
-        ) : inCall ? (
-          <div className="bg-gray-900/70 p-8 text-center rounded-2xl border border-cyan-500/20">
-            <p className="text-xl mb-4">Incoming call from {webrtc.remoteAddress ? getDisplayName(webrtc.remoteAddress) : '...'}</p>
-            <div className="flex justify-center gap-4">
-              <button onClick={webrtc.acceptCall} className="px-8 py-3 bg-green-600 rounded-full text-lg">Accept</button>
-              <button onClick={webrtc.rejectCall} className="px-8 py-3 bg-red-600 rounded-full text-lg">Reject</button>
+              <button onClick={() => window.open(window.location.href, '_blank')} className="mt-2 px-6 py-2 bg-cyan-700 rounded-full text-sm">Open in Browser</button>
             </div>
           </div>
         ) : inCall ? (
@@ -174,9 +153,10 @@ export default function Home() {
                 <span className="absolute bottom-2 left-2 text-xs bg-black/50 px-2 py-1 rounded">{webrtc.remoteAddress ? getDisplayName(webrtc.remoteAddress) : '...'}</span>
               </div>
             </div>
-            <div className="flex justify-center gap-3 mb-4">
+            <div className="flex justify-center gap-3 mb-4 flex-wrap">
               <button onClick={webrtc.toggleMute} className="px-4 py-2 rounded-full bg-gray-800">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
               <button onClick={webrtc.toggleCamera} className="px-4 py-2 rounded-full bg-gray-800">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
+              <button onClick={() => webrtc.startScreenShare?.()} className="px-4 py-2 rounded-full bg-purple-700">Share Screen</button>
               <button onClick={webrtc.hangup} className="px-6 py-2 rounded-full bg-red-600">Hangup</button>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); webrtc.sendChat(chatInput); setChatInput(''); }} className="flex gap-2">
@@ -197,10 +177,10 @@ export default function Home() {
                 <h2 className="text-xl mb-4">Call someone</h2>
                 <div className="flex gap-2 mb-4">
                   <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Wallet, name.sol or name.vex" className="flex-1 bg-black/50 border border-cyan-500/30 rounded-lg px-4 py-3" />
-                  <button onClick={handleCall} className="px-6 py-3 bg-cyan-600 rounded-lg">Start Call</button>
                 </div>
-                <div className="flex gap-4 text-sm items-center">
-                  <label className="flex items-center gap-1"><input type="checkbox" checked={withVideo} onChange={e => setWithVideo(e.target.checked)} /> Video</label>
+                <div className="flex gap-3">
+                  <button onClick={() => handleCall(false)} className="flex-1 px-6 py-3 bg-emerald-600 rounded-lg font-semibold">VexVoice</button>
+                  <button onClick={() => handleCall(true)} className="flex-1 px-6 py-3 bg-cyan-600 rounded-lg font-semibold">VexVideo</button>
                 </div>
               </div>
             )}
@@ -230,7 +210,7 @@ export default function Home() {
                   <div key={i} className="flex justify-between items-center bg-black/40 rounded-lg p-3 mb-2">
                     <div>
                       <p>{h.name || getDisplayName(h.address)}</p>
-                      <p className="text-xs text-gray-400">{h.type}</p>
+                      <p className="text-xs text-gray-400">{h.type}{h.video ? ' (video)' : ''}</p>
                     </div>
                     <button onClick={() => { setTarget(h.address); setTab('dial'); }} className="px-3 py-1 bg-cyan-700 rounded text-xs">Call</button>
                   </div>

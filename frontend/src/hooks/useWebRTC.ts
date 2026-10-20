@@ -118,34 +118,12 @@ export function useWebRTC(myAddress: string | null) {
     } catch (err) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        alert('Video blocked by wallet. Using audio only.');
+        alert('Video blocked. Using audio only.');
       } catch {
-        alert('Camera/mic blocked.\n\nIn Phantom or Solflare:\n1. Open the site in the system browser (Chrome/Safari)\n2. Or allow permissions in wallet settings\n\nThen try Accept again.');
+        alert('Camera/mic blocked. Allow permissions or open in Chrome/Safari.');
         throw err;
       }
     }
-    setLocalStream(stream);
-    stream.getTracks().forEach(t => pc.addTrack(t, stream));
-    return pc;
-  };
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    pcRef.current = pc;
-    pc.onicecandidate = (e) => {
-      if (e.candidate && socketRef.current && remoteAddressRef.current) {
-        socketRef.current.emit('ice-candidate', { to: remoteAddressRef.current, candidate: e.candidate, callId: callIdRef.current });
-      }
-    };
-    pc.ontrack = (e) => {
-      if (e.streams?.[0]) setRemoteStream(e.streams[0]);
-      else if (e.track) setRemoteStream(new MediaStream([e.track]));
-    };
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: withVideo ? { facingMode: 'user' } : false
-    }).catch(err => {
-      alert('Allow camera & mic, then try again.\n\nOn Phantom: open in system browser (Chrome/Safari) for best results.');
-      throw err;
-    });
     setLocalStream(stream);
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     return pc;
@@ -170,7 +148,7 @@ export function useWebRTC(myAddress: string | null) {
 
   const acceptCall = async () => {
     if (!socketRef.current || !remoteAddress || !pendingOfferRef.current) {
-      return alert('Call not ready. Wait a moment and tap Accept again.');
+      return alert('Call not ready. Try again.');
     }
     try {
       const pc = await createPC(true);
@@ -187,34 +165,7 @@ export function useWebRTC(myAddress: string | null) {
       setStatus('connected');
       setCallStart(Date.now());
     } catch (e) {
-      alert('Failed to start call. Allow mic/camera or open in Chrome/Safari.');
-      cleanup();
-    }
-  };
-    if (!socketRef.current || !remoteAddress || !pendingOfferRef.current) {
-      return alert('Call not ready. Wait 2 seconds and try Accept again.');
-    }
-    try {
-      setStatus('connected');
-      setCallStart(Date.now());
-      let pc;
-      try {
-        pc = await createPC(true);
-      } catch {
-        pc = await createPC(false);
-      }
-      await pc.setRemoteDescription(pendingOfferRef.current);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socketRef.current.emit('call-answer', { to: remoteAddress, from: myAddress, answer, callId });
-      socketRef.current.emit('join-room', callId);
-      for (const c of pendingCandidates.current) {
-        try { await pc.addIceCandidate(c); } catch {}
-      }
-      pendingCandidates.current = [];
-      pendingOfferRef.current = null;
-    } catch (e) {
-      alert('Could not start camera/mic. Allow permissions or open the site in Chrome/Safari (not Phantom browser).');
+      alert('Could not start media. Allow permissions or open in Chrome/Safari.');
       cleanup();
     }
   };
@@ -246,6 +197,20 @@ export function useWebRTC(myAddress: string | null) {
     }
   };
 
+  const startScreenShare = async () => {
+    try {
+      const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
+      if (sender) await sender.replaceTrack(screen.getVideoTracks()[0]);
+      screen.getVideoTracks()[0].onended = () => {
+        const cam = localStream?.getVideoTracks()[0];
+        if (cam && sender) sender.replaceTrack(cam);
+      };
+    } catch (e) {
+      alert('Screen share cancelled or not allowed');
+    }
+  };
+
   const sendChat = (text: string) => {
     if (socketRef.current && callId && text.trim()) {
       socketRef.current.emit('chat-message', { callId, from: myAddress, text: text.trim() });
@@ -258,6 +223,6 @@ export function useWebRTC(myAddress: string | null) {
     status, remoteAddress, localStream, remoteStream,
     muted, cameraOff, chat, reactions, presence, callStart,
     startCall, acceptCall, rejectCall, hangup,
-    toggleMute, toggleCamera, sendChat, isOnline
+    toggleMute, toggleCamera, sendChat, isOnline, startScreenShare
   };
 }
