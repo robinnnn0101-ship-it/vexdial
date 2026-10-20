@@ -30,8 +30,12 @@ export function useWebRTC(myAddress: string | null) {
   const socketRef = useRef<Socket|null>(null);
   const pcRef = useRef<RTCPeerConnection|null>(null);
   const pendingOffer = useRef<any>(null);
+  const pendingCands = useRef<any[]>([]);
   const callIdRef = useRef('');
   const ringInterval = useRef<any>(null);
+  const remoteAddrRef = useRef<string|null>(null);
+
+  useEffect(() => { remoteAddrRef.current = remoteAddress; }, [remoteAddress]);
 
   const stopRing = () => { if (ringInterval.current) clearInterval(ringInterval.current); ringInterval.current = null; };
 
@@ -47,18 +51,14 @@ export function useWebRTC(myAddress: string | null) {
     setCallStart(null);
     setChat([]);
     pendingOffer.current = null;
+    pendingCands.current = [];
   };
 
   useEffect(() => {
     if (!myAddress) return;
-    const socket = io(SIGNALING, { transports: ['websocket', 'polling'], reconnection: true });
+    const socket = io(SIGNALING, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
-    socket.on('connect', () => {
-      socket.emit('register', { address: myAddress, status: 'online' });
-    });
-    socket.on('reconnect', () => {
-      socket.emit('register', { address: myAddress, status: 'online' });
-    });
+    socket.on('connect', () => socket.emit('register', { address: myAddress, status: 'online' }));
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
@@ -75,12 +75,19 @@ export function useWebRTC(myAddress: string | null) {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
         setStatus('connected');
         setCallStart(Date.now());
+        for (const c of pendingCands.current) {
+          try { await pcRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+        }
+        pendingCands.current = [];
       }
     });
 
     socket.on('ice-candidate', async ({ candidate }) => {
-      if (candidate && pcRef.current?.remoteDescription) {
+      if (!candidate) return;
+      if (pcRef.current?.remoteDescription) {
         try { await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+      } else {
+        pendingCands.current.push(candidate);
       }
     });
 
@@ -97,9 +104,14 @@ export function useWebRTC(myAddress: string | null) {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
     pcRef.current = pc;
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
-    pc.ontrack = (e) => setRemoteStream(e.streams[0]);
+    pc.ontrack = (e) => {
+      const stream = e.streams?.[0] || new MediaStream([e.track]);
+      setRemoteStream(stream);
+    };
     pc.onicecandidate = (e) => {
-      if (e.candidate && socketRef.current) socketRef.current.emit('ice-candidate', { to: remote, candidate: e.candidate, callId: callIdRef.current });
+      if (e.candidate && socketRef.current && remoteAddrRef.current) {
+        socketRef.current.emit('ice-candidate', { to: remoteAddrRef.current, candidate: e.candidate, callId: callIdRef.current });
+      }
     };
     return pc;
   };
@@ -107,6 +119,7 @@ export function useWebRTC(myAddress: string | null) {
   const startCall = async (target: string, _t?: string, withVideo = true) => {
     if (!socketRef.current || !myAddress) return alert('Not ready');
     setRemoteAddress(target);
+    remoteAddrRef.current = target;
     setStatus('calling');
     stopRing();
     ringInterval.current = setInterval(() => playTone(440, 0.15), 2000);
@@ -133,6 +146,10 @@ export function useWebRTC(myAddress: string | null) {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socketRef.current?.emit('call-answer', { to: remoteAddress, from: myAddress, answer, callId: callIdRef.current });
+      for (const c of pendingCands.current) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+      }
+      pendingCands.current = [];
       setStatus('connected');
       setCallStart(Date.now());
       pendingOffer.current = null;
