@@ -30,12 +30,11 @@ export function useWebRTC(myAddress: string | null) {
   const socketRef = useRef<Socket|null>(null);
   const pcRef = useRef<RTCPeerConnection|null>(null);
   const pendingOffer = useRef<any>(null);
+  const pendingCands = useRef<any[]>([]);
   const callIdRef = useRef('');
   const ringInterval = useRef<any>(null);
   const remoteAddrRef = useRef<string|null>(null);
-  const pendingCands = useRef<any[]>([]);
 
-  useEffect(() => { remoteAddrRef.current = remoteAddress; }, [remoteAddress]);
   const stopRing = () => { if (ringInterval.current) clearInterval(ringInterval.current); ringInterval.current = null; };
 
   const cleanup = () => {
@@ -53,16 +52,24 @@ export function useWebRTC(myAddress: string | null) {
     pendingCands.current = [];
   };
 
+  useEffect(() => { remoteAddrRef.current = remoteAddress; }, [remoteAddress]);
+
   useEffect(() => {
     if (!myAddress) return;
-    const socket = io(SIGNALING, { transports: ['websocket', 'polling'], reconnection: true });
+    const socket = io(SIGNALING, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 800,
+    });
     socketRef.current = socket;
-    socket.on('connect', () => socket.emit('register', { address: myAddress, status: 'online' }));
-    socket.on('reconnect', () => socket.emit('register', { address: myAddress, status: 'online' }));
+
+    const register = () => socket.emit('register', { address: myAddress, status: 'online' });
+    socket.on('connect', register);
+    socket.on('reconnect', register);
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
-      remoteAddrRef.current = from;
       callIdRef.current = callId;
       pendingOffer.current = offer;
       setStatus('ringing');
@@ -76,15 +83,20 @@ export function useWebRTC(myAddress: string | null) {
         await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
         setStatus('connected');
         setCallStart(Date.now());
-        for (const c of pendingCands.current) try { await pcRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+        for (const c of pendingCands.current) {
+          try { await pcRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+        }
         pendingCands.current = [];
       }
     });
 
     socket.on('ice-candidate', async ({ candidate }) => {
       if (!candidate) return;
-      if (pcRef.current?.remoteDescription) try { await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
-      else pendingCands.current.push(candidate);
+      if (pcRef.current?.remoteDescription) {
+        try { await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+      } else {
+        pendingCands.current.push(candidate);
+      }
     });
 
     socket.on('call-rejected', () => { stopRing(); cleanup(); });
@@ -105,11 +117,13 @@ export function useWebRTC(myAddress: string | null) {
     pcRef.current = pc;
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     pc.ontrack = (e) => {
-      const s = e.streams?.[0] || new MediaStream([e.track]);
-      setRemoteStream(s);
+      const stream = e.streams?.[0] || new MediaStream([e.track]);
+      setRemoteStream(stream);
     };
     pc.onicecandidate = (e) => {
-      if (e.candidate && socketRef.current) socketRef.current.emit('ice-candidate', { to: remote, candidate: e.candidate, callId: callIdRef.current });
+      if (e.candidate && socketRef.current && remoteAddrRef.current) {
+        socketRef.current.emit('ice-candidate', { to: remoteAddrRef.current, candidate: e.candidate, callId: callIdRef.current });
+      }
     };
     return pc;
   };
@@ -137,14 +151,16 @@ export function useWebRTC(myAddress: string | null) {
     stopRing();
     if (!pendingOffer.current || !remoteAddress) return;
     try {
-      const stream = await getStream(false);
+      const stream = await getStream(true);
       setLocalStream(stream);
       const pc = await makePC(stream, remoteAddress);
       await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socketRef.current?.emit('call-answer', { to: remoteAddress, from: myAddress, answer, callId: callIdRef.current });
-      for (const c of pendingCands.current) try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+      for (const c of pendingCands.current) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+      }
       pendingCands.current = [];
       setStatus('connected');
       setCallStart(Date.now());
