@@ -3,222 +3,107 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useEffect, useRef, useState } from 'react';
 import { useWebRTC } from '../hooks/useWebRTC';
-import { resolveSolDomain, resolveVexDomain, reverseVex } from '../lib/sns';
 
 export default function Home() {
   const { publicKey, connected } = useWallet();
   const myAddress = publicKey?.toBase58() || null;
   const webrtc = useWebRTC(myAddress);
   const [target, setTarget] = useState('');
-  const [tab, setTab] = useState('dial');
-  const [contacts, setContacts] = useState<any[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
-  const [myVexName, setMyVexName] = useState<string | null>(null);
-  const [callDuration, setCallDuration] = useState(0);
   const [chatInput, setChatInput] = useState('');
-  const [mounted, setMounted] = useState(false);
-  const [isWalletBrowser, setIsWalletBrowser] = useState(false);
-  const localVideo = useRef<HTMLVideoElement>(null);
-  const remoteVideo = useRef<HTMLVideoElement>(null);
-  const remoteAudio = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => { setMounted(true); }, []);
-  useEffect(() => {
-    const ua = navigator.userAgent || '';
-    setIsWalletBrowser(/Phantom|Solflare|Trust/i.test(ua));
-  }, []);
+  const [duration, setDuration] = useState(0);
+  const localRef = useRef<HTMLVideoElement>(null);
+  const remoteRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    setContacts(JSON.parse(localStorage.getItem('vexdial-contacts') || '[]'));
-    setHistory(JSON.parse(localStorage.getItem('vexdial-history') || '[]'));
-  }, []);
-
-  useEffect(() => {
-    if (myAddress) reverseVex(myAddress).then(r => setMyVexName(r.name));
-  }, [myAddress]);
-
-  useEffect(() => {
-    if (webrtc.status !== 'connected' || !webrtc.callStart) return;
-    const iv = setInterval(() => setCallDuration(Math.floor((Date.now() - (webrtc.callStart as number)) / 1000)), 1000);
-    return () => clearInterval(iv);
-  }, [webrtc.status, webrtc.callStart]);
-
-  useEffect(() => {
-    if (webrtc.localStream && localVideo.current) {
-      localVideo.current.srcObject = webrtc.localStream;
-      localVideo.current.play?.().catch(() => {});
-    }
+    if (webrtc.localStream && localRef.current) localRef.current.srcObject = webrtc.localStream;
   }, [webrtc.localStream]);
 
   useEffect(() => {
-    if (webrtc.remoteStream && remoteVideo.current) {
-      remoteVideo.current.srcObject = webrtc.remoteStream;
-      remoteVideo.current.muted = false;
-      remoteVideo.current.play?.().catch(() => {});
-    }
-    if (webrtc.remoteStream && remoteAudio.current) {
-      remoteAudio.current.srcObject = webrtc.remoteStream;
-      remoteAudio.current.muted = false;
-      remoteAudio.current.play?.().catch(() => {});
+    if (webrtc.remoteStream && remoteRef.current) {
+      remoteRef.current.srcObject = webrtc.remoteStream;
+      remoteRef.current.play().catch(() => {});
     }
   }, [webrtc.remoteStream]);
 
-  const getDisplayName = (addr: string) => {
-    const c = contacts.find(x => x.address === addr);
-    return c?.name || (addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : '');
+  useEffect(() => {
+    if (webrtc.status !== 'connected' || !webrtc.callStart) return;
+    const i = setInterval(() => setDuration(Math.floor((Date.now() - webrtc.callStart!) / 1000)), 1000);
+    return () => clearInterval(i);
+  }, [webrtc.status, webrtc.callStart]);
+
+  const call = (video: boolean) => {
+    if (!target.trim()) return alert('Enter address');
+    webrtc.startCall(target.trim(), undefined, video);
   };
 
-  const handleCall = async (video = false) => {
-    let addr = target.trim();
-    if (addr.endsWith('.sol') || addr.endsWith('.sns')) {
-      const resolved = await resolveSolDomain(addr);
-      if (!resolved) return alert('Could not resolve domain');
-      addr = resolved;
-    } else if (addr.endsWith('.vex')) {
-      const resolved = await resolveVexDomain(addr);
-      if (!resolved) return alert('Could not resolve .vex');
-      addr = resolved.address;
-    }
-    if (!addr || addr.length < 32) return alert('Enter valid address');
-    const log = { address: addr, type: 'outgoing', ts: Date.now(), name: target, video };
-    const next = [log, ...history].slice(0, 50);
-    setHistory(next);
-    localStorage.setItem('vexdial-history', JSON.stringify(next));
-    webrtc.startCall(addr, undefined, video);
-  };
+  if (!connected) return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-cyan-400 mb-4">VexDial</h1>
+        <WalletMultiButton />
+      </div>
+    </div>
+  );
 
-  const addContact = () => {
-    const addr = prompt('Wallet address');
-    if (!addr) return;
-    const name = prompt('Name') || '';
-    const next = [{ address: addr, name }, ...contacts.filter(c => c.address !== addr)];
-    setContacts(next);
-    localStorage.setItem('vexdial-contacts', JSON.stringify(next));
-  };
+  if (webrtc.status === 'ringing') return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
+      <div className="text-center bg-gray-900 p-8 rounded-2xl">
+        <p className="text-xl mb-6">Incoming call</p>
+        <div className="flex gap-4">
+          <button onClick={webrtc.acceptCall} className="px-8 py-3 bg-green-600 rounded-full">Accept</button>
+          <button onClick={webrtc.rejectCall} className="px-8 py-3 bg-red-600 rounded-full">Reject</button>
+        </div>
+      </div>
+    </div>
+  );
 
-  const inCall = webrtc.status === 'connected' || webrtc.status === 'calling';
-  const isRinging = webrtc.status === 'ringing';
+  if (webrtc.status === 'calling' || webrtc.status === 'connected') return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center text-cyan-400 mb-4">
+          {webrtc.status === 'calling' ? 'Calling...' : `Connected ${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')}`}
+        </div>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="bg-black rounded-xl overflow-hidden aspect-video relative">
+            <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+            <span className="absolute bottom-2 left-2 text-xs bg-black/60 px-2 py-1 rounded">You</span>
+          </div>
+          <div className="bg-black rounded-xl overflow-hidden aspect-video relative">
+            <video ref={remoteRef} autoPlay playsInline className="w-full h-full object-cover" />
+            <span className="absolute bottom-2 left-2 text-xs bg-black/60 px-2 py-1 rounded">Remote</span>
+          </div>
+        </div>
+        <div className="flex justify-center gap-3 mb-4">
+          <button onClick={webrtc.toggleMute} className="px-4 py-2 bg-gray-800 rounded-full">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
+          <button onClick={webrtc.toggleCamera} className="px-4 py-2 bg-gray-800 rounded-full">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
+          <button onClick={webrtc.startScreenShare} className="px-4 py-2 bg-purple-700 rounded-full">Share</button>
+          <button onClick={webrtc.hangup} className="px-6 py-2 bg-red-600 rounded-full">Hangup</button>
+        </div>
+        <div className="bg-gray-900 rounded-xl p-3 mb-2 h-32 overflow-y-auto text-sm">
+          {webrtc.chat.map((m, i) => <div key={i} className="mb-1"><b>{m.from?.slice(0,4)}:</b> {m.text}</div>)}
+        </div>
+        <form onSubmit={e => { e.preventDefault(); webrtc.sendChat(chatInput); setChatInput(''); }} className="flex gap-2">
+          <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-black border border-cyan-700 rounded px-3 py-2" placeholder="Message..." />
+          <button className="px-4 py-2 bg-cyan-600 rounded">Send</button>
+        </form>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white p-4">
-      <div className="max-w-4xl mx-auto">
-        <header className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-cyan-400">VexDial</h1>
-            {myVexName && <p className="text-xs text-cyan-400">{myVexName}</p>}
-          </div>
-          <div className="flex items-center gap-3">
-            {connected && <span className="text-xs text-cyan-400">{myAddress?.slice(0,6)}...{myAddress?.slice(-4)}</span>}
-            {mounted && <WalletMultiButton />}
-          </div>
+      <div className="max-w-md mx-auto">
+        <header className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-cyan-400">VexDial</h1>
+          <WalletMultiButton />
         </header>
-
-        {!connected ? (
-          <div className="bg-gray-900/70 p-12 text-center rounded-2xl border border-cyan-500/20">
-            <p className="text-xl mb-4">Connect your Solana wallet</p>
-            <p className="text-sm text-gray-400 mb-4">Your wallet is your phone number</p>
-            {isWalletBrowser && (
-              <div className="bg-yellow-900/50 border border-yellow-600 rounded-lg p-4 mb-4 text-sm">
-                <p className="font-semibold mb-2">You're inside a wallet browser</p>
-                <p>Camera and calls work better in Chrome/Safari.</p>
-                <button onClick={() => window.open(window.location.href, '_blank')} className="mt-3 px-6 py-2 bg-cyan-600 rounded-full">Open in Browser</button>
-              </div>
-            )}
+        <div className="bg-gray-900/70 p-6 rounded-2xl">
+          <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Wallet address" className="w-full bg-black border border-cyan-700 rounded-lg px-4 py-3 mb-4" />
+          <div className="flex gap-3">
+            <button onClick={() => call(false)} className="flex-1 py-3 bg-emerald-600 rounded-lg font-semibold">VexVoice</button>
+            <button onClick={() => call(true)} className="flex-1 py-3 bg-cyan-600 rounded-lg font-semibold">VexVideo</button>
           </div>
-        ) : isRinging ? (
-          <div className="bg-gray-900/70 p-8 text-center rounded-2xl border border-cyan-500/20">
-            <p className="text-xl mb-4">Incoming call from {webrtc.remoteAddress ? getDisplayName(webrtc.remoteAddress) : '...'}</p>
-            <div className="flex flex-col gap-3 items-center">
-              <div className="flex justify-center gap-4">
-                <button onClick={webrtc.acceptCall} className="px-8 py-3 bg-green-600 rounded-full text-lg">Accept</button>
-                <button onClick={webrtc.rejectCall} className="px-8 py-3 bg-red-600 rounded-full text-lg">Reject</button>
-              </div>
-              <button onClick={() => window.open(window.location.href, '_blank')} className="mt-2 px-6 py-2 bg-cyan-700 rounded-full text-sm">Open in Browser</button>
-            </div>
-          </div>
-        ) : inCall ? (
-          <div className="bg-gray-900/70 p-4 rounded-2xl border border-cyan-500/20">
-            <audio ref={remoteAudio} autoPlay playsInline />
-            <div className="text-center mb-2 text-sm text-cyan-400">
-              {webrtc.status === 'calling' && 'Calling...'}
-              {webrtc.status === 'connected' && `Connected ${Math.floor(callDuration/60)}:${String(callDuration%60).padStart(2,'0')}`}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div className="relative bg-black rounded-xl overflow-hidden aspect-video">
-                <video ref={localVideo} autoPlay muted playsInline className="w-full h-full object-cover" />
-                <span className="absolute bottom-2 left-2 text-xs bg-black/50 px-2 py-1 rounded">You</span>
-              </div>
-              <div className="relative bg-black rounded-xl overflow-hidden aspect-video">
-                <video ref={remoteVideo} autoPlay playsInline className="w-full h-full object-cover" />
-                <span className="absolute bottom-2 left-2 text-xs bg-black/50 px-2 py-1 rounded">{webrtc.remoteAddress ? getDisplayName(webrtc.remoteAddress) : '...'}</span>
-              </div>
-            </div>
-            <div className="flex justify-center gap-3 mb-4 flex-wrap">
-              <button onClick={webrtc.toggleMute} className="px-4 py-2 rounded-full bg-gray-800">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
-              <button onClick={webrtc.toggleCamera} className="px-4 py-2 rounded-full bg-gray-800">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
-              <button onClick={() => webrtc.startScreenShare?.()} className="px-4 py-2 rounded-full bg-purple-700">Share Screen</button>
-              <button onClick={webrtc.hangup} className="px-6 py-2 rounded-full bg-red-600">Hangup</button>
-            </div>
-            <form onSubmit={(e) => { e.preventDefault(); webrtc.sendChat(chatInput); setChatInput(''); }} className="flex gap-2">
-              <input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Message..." className="flex-1 bg-black/50 border border-cyan-500/30 rounded px-3 py-2 text-sm" />
-              <button type="submit" className="px-4 py-2 bg-cyan-600 rounded text-sm">Send</button>
-            </form>
-          </div>
-        ) : (
-          <div>
-            <div className="flex gap-2 mb-4">
-              <button onClick={() => setTab('dial')} className={`px-4 py-2 rounded-lg text-sm ${tab === 'dial' ? 'bg-cyan-600' : 'bg-gray-800'}`}>Dial</button>
-              <button onClick={() => setTab('contacts')} className={`px-4 py-2 rounded-lg text-sm ${tab === 'contacts' ? 'bg-cyan-600' : 'bg-gray-800'}`}>VexBook</button>
-              <button onClick={() => setTab('history')} className={`px-4 py-2 rounded-lg text-sm ${tab === 'history' ? 'bg-cyan-600' : 'bg-gray-800'}`}>History</button>
-            </div>
-
-            {tab === 'dial' && (
-              <div className="bg-gray-900/70 p-6 rounded-2xl border border-cyan-500/20">
-                <h2 className="text-xl mb-4">Call someone</h2>
-                <div className="flex gap-2 mb-4">
-                  <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Wallet, name.sol or name.vex" className="flex-1 bg-black/50 border border-cyan-500/30 rounded-lg px-4 py-3" />
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => handleCall(false)} className="flex-1 px-6 py-3 bg-emerald-600 rounded-lg font-semibold">VexVoice</button>
-                  <button onClick={() => handleCall(true)} className="flex-1 px-6 py-3 bg-cyan-600 rounded-lg font-semibold">VexVideo</button>
-                </div>
-              </div>
-            )}
-
-            {tab === 'contacts' && (
-              <div className="bg-gray-900/70 p-6 rounded-2xl border border-cyan-500/20">
-                <div className="flex justify-between mb-4">
-                  <h2 className="text-xl">VexBook</h2>
-                  <button onClick={addContact} className="px-4 py-2 bg-cyan-600 rounded text-sm">Add</button>
-                </div>
-                {contacts.map(c => (
-                  <div key={c.address} className="flex justify-between items-center bg-black/40 rounded-lg p-3 mb-2">
-                    <div>
-                      <p>{c.name || 'Unnamed'}</p>
-                      <p className="text-xs text-gray-400">{c.address.slice(0,8)}...</p>
-                    </div>
-                    <button onClick={() => { setTarget(c.address); setTab('dial'); }} className="px-3 py-1 bg-cyan-700 rounded text-xs">Call</button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {tab === 'history' && (
-              <div className="bg-gray-900/70 p-6 rounded-2xl border border-cyan-500/20">
-                <h2 className="text-xl mb-4">History</h2>
-                {history.map((h, i) => (
-                  <div key={i} className="flex justify-between items-center bg-black/40 rounded-lg p-3 mb-2">
-                    <div>
-                      <p>{h.name || getDisplayName(h.address)}</p>
-                      <p className="text-xs text-gray-400">{h.type}{h.video ? ' (video)' : ''}</p>
-                    </div>
-                    <button onClick={() => { setTarget(h.address); setTab('dial'); }} className="px-3 py-1 bg-cyan-700 rounded text-xs">Call</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
