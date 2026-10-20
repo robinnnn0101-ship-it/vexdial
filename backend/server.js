@@ -21,34 +21,7 @@ function getRoomId(a, b) {
   return [a, b].sort().join('_');
 }
 
-app.post('/api/vex/register', (req, res) => {
-  const { name, address } = req.body;
-  if (!name || !address || !name.endsWith('.vex')) {
-    return res.status(400).json({ error: 'Need name.vex and address' });
-  }
-  const clean = name.toLowerCase().replace('.vex', '');
-  if (vexNames.has(clean)) return res.status(409).json({ error: 'Name taken' });
-  vexNames.set(clean, { address, verified: false, owner: address });
-  addressToVex.set(address, clean);
-  res.json({ ok: true, name: clean + '.vex' });
-});
-
-app.get('/api/vex/resolve/:name', (req, res) => {
-  let name = req.params.name.toLowerCase();
-  if (name.endsWith('.vex')) name = name.slice(0, -4);
-  const entry = vexNames.get(name);
-  if (!entry) return res.status(404).json({ error: 'Not found' });
-  res.json({ address: entry.address, verified: entry.verified, name: name + '.vex' });
-});
-
-app.get('/api/vex/reverse/:address', (req, res) => {
-  const name = addressToVex.get(req.params.address);
-  if (!name) return res.json({ name: null });
-  const entry = vexNames.get(name);
-  res.json({ name: name + '.vex', verified: entry?.verified || false });
-});
-
-app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size, names: vexNames.size }));
+app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size }));
 
 io.on('connection', (socket) => {
   socket.on('register', ({ address, status = 'online' }) => {
@@ -73,9 +46,9 @@ io.on('connection', (socket) => {
   socket.on('call-answer', ({ to, from, answer, callId }) => {
     const target = presence.get(to);
     if (target) {
-      const roomId = callId || getRoomId(from, to);
-      if (rooms.has(roomId)) rooms.get(roomId).participants.add(from);
-      io.to(target.socketId).emit('call-answered', { from, answer, callId: roomId });
+      io.to(target.socketId).emit('call-answered', { from, answer, callId });
+    } else {
+      io.emit('call-answered', { from, answer, callId, to });
     }
   });
 
