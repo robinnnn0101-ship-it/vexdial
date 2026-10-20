@@ -16,6 +16,7 @@ export default function Home() {
   const [duration, setDuration] = useState(0);
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     setContacts(JSON.parse(localStorage.getItem('vexdial-contacts') || '[]'));
@@ -27,9 +28,15 @@ export default function Home() {
   }, [webrtc.localStream]);
 
   useEffect(() => {
-    if (webrtc.remoteStream && remoteRef.current) {
-      remoteRef.current.srcObject = webrtc.remoteStream;
-      remoteRef.current.play().catch(() => {});
+    if (webrtc.remoteStream) {
+      if (remoteRef.current) {
+        remoteRef.current.srcObject = webrtc.remoteStream;
+        remoteRef.current.play().catch(() => {});
+      }
+      if (audioRef.current) {
+        audioRef.current.srcObject = webrtc.remoteStream;
+        audioRef.current.play().catch(() => {});
+      }
     }
   }, [webrtc.remoteStream]);
 
@@ -88,6 +95,7 @@ export default function Home() {
         <div className="text-center text-cyan-400 mb-4 text-lg">
           {webrtc.status === 'calling' ? 'Calling...' : `Connected ${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')}`}
         </div>
+        <audio ref={audioRef} autoPlay />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div className="bg-black rounded-xl overflow-hidden aspect-video relative">
             <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
