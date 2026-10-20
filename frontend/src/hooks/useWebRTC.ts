@@ -59,8 +59,8 @@ export function useWebRTC(myAddress: string | null) {
     const socket = io(SIGNALING, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 15,
-      reconnectionDelay: 800,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
     });
     socketRef.current = socket;
 
@@ -79,14 +79,16 @@ export function useWebRTC(myAddress: string | null) {
 
     socket.on('call-answered', async ({ answer }) => {
       stopRing();
-      if (pcRef.current) {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-        setStatus('connected');
-        setCallStart(Date.now());
-        for (const c of pendingCands.current) {
-          try { await pcRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-        }
-        pendingCands.current = [];
+      if (pcRef.current && answer) {
+        try {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+          setStatus('connected');
+          setCallStart(Date.now());
+          for (const c of pendingCands.current) {
+            try { await pcRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+          }
+          pendingCands.current = [];
+        } catch (e) { console.error(e); }
       }
     });
 
@@ -112,13 +114,13 @@ export function useWebRTC(myAddress: string | null) {
     return navigator.mediaDevices.getUserMedia(constraints);
   };
 
-  const makePC = async (stream: MediaStream, remote: string) => {
+  const makePC = async (stream: MediaStream) => {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
     pcRef.current = pc;
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     pc.ontrack = (e) => {
-      const stream = e.streams?.[0] || new MediaStream([e.track]);
-      setRemoteStream(stream);
+      const s = e.streams?.[0] || new MediaStream([e.track]);
+      setRemoteStream(s);
     };
     pc.onicecandidate = (e) => {
       if (e.candidate && socketRef.current && remoteAddrRef.current) {
@@ -128,7 +130,7 @@ export function useWebRTC(myAddress: string | null) {
     return pc;
   };
 
-  const startCall = async (target: string, _t?: string, withVideo = true) => {
+  const startCall = async (target: string, _t?: string, withVideo = false) => {
     if (!socketRef.current || !myAddress) return alert('Not ready');
     setRemoteAddress(target);
     remoteAddrRef.current = target;
@@ -138,7 +140,7 @@ export function useWebRTC(myAddress: string | null) {
     try {
       const stream = await getStream(withVideo);
       setLocalStream(stream);
-      const pc = await makePC(stream, target);
+      const pc = await makePC(stream);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       const cid = [myAddress, target].sort().join('_');
@@ -152,10 +154,10 @@ export function useWebRTC(myAddress: string | null) {
     stopRing();
     if (!pendingOffer.current || !remoteAddress) return;
     try {
-      const isVideo = pendingOffer.current?.sdp?.includes('m=video') || false;
+      const isVideo = String(pendingOffer.current.sdp || '').includes('m=video');
       const stream = await getStream(isVideo);
       setLocalStream(stream);
-      const pc = await makePC(stream, remoteAddress);
+      const pc = await makePC(stream);
       await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
