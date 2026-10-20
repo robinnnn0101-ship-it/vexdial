@@ -144,6 +144,7 @@ export function useWebRTC(myAddress: string | null) {
       const cid = [myAddress, target].sort().join('_');
       callIdRef.current = cid;
       socketRef.current.emit('call-offer', { to: target, from: myAddress, offer, callId: cid });
+      socketRef.current.emit('join-room', cid);
     } catch { stopRing(); cleanup(); }
   };
 
@@ -151,13 +152,15 @@ export function useWebRTC(myAddress: string | null) {
     stopRing();
     if (!pendingOffer.current || !remoteAddress) return;
     try {
-      const stream = await getStream(true);
+      const isVideo = pendingOffer.current?.sdp?.includes('m=video') || false;
+      const stream = await getStream(isVideo);
       setLocalStream(stream);
       const pc = await makePC(stream, remoteAddress);
       await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socketRef.current?.emit('call-answer', { to: remoteAddress, from: myAddress, answer, callId: callIdRef.current });
+      socketRef.current?.emit('join-room', callIdRef.current);
       for (const c of pendingCands.current) {
         try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
       }
