@@ -13,6 +13,7 @@ const io = new Server(server, {
 
 const presence = new Map();
 const rooms = new Map();
+
 const vexNames = new Map();
 const addressToVex = new Map();
 
@@ -50,15 +51,11 @@ app.get('/api/vex/reverse/:address', (req, res) => {
 app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size, names: vexNames.size }));
 
 io.on('connection', (socket) => {
-  console.log('connected:', socket.id);
-
   socket.on('register', ({ address, status = 'online' }) => {
     if (!address) return;
     presence.set(address, { socketId: socket.id, status, lastSeen: Date.now() });
     socket.data.address = address;
     socket.join(address);
-    io.emit('presence-update', Object.fromEntries(presence));
-    console.log('registered:', address);
   });
 
   socket.on('call-offer', ({ to, from, offer, callId }) => {
@@ -100,15 +97,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chat-message', ({ callId, from, text }) => {
-    if (callId && rooms.has(callId)) {
-      io.to(callId).emit('chat-message', { from, text, ts: Date.now() });
-    }
+    if (!callId || !text) return;
+    io.to(callId).emit('chat-message', { from, text, ts: Date.now() });
+  });
+
+  socket.on('join-room', (callId) => {
+    if (callId) socket.join(callId);
   });
 
   socket.on('disconnect', () => {
     const addr = socket.data.address;
     if (addr) presence.delete(addr);
-    io.emit('presence-update', Object.fromEntries(presence));
   });
 });
 
