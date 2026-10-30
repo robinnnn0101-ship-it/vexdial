@@ -59,14 +59,17 @@ export function useWebRTC(myAddress: string | null) {
     const socket = io(SIGNALING, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 800,
     });
     socketRef.current = socket;
 
-    const register = () => socket.emit('register', { address: myAddress, status: 'online' });
+    const register = () => {
+      socket.emit('register', { address: myAddress, status: 'online' });
+    };
     socket.on('connect', register);
     socket.on('reconnect', register);
+    const regInterval = setInterval(register, 15000);
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
@@ -101,11 +104,18 @@ export function useWebRTC(myAddress: string | null) {
       }
     });
 
-    socket.on('call-rejected', () => { stopRing(); cleanup(); });
+    socket.on('call-error', ({ error }) => {
+      alert(error || 'Call failed');
+      stopRing();
+      cleanup();
+    });
     socket.on('call-ended', () => { stopRing(); cleanup(); });
     socket.on('chat-message', (msg) => setChat(p => [...p, msg]));
 
-    return () => socket.disconnect();
+    return () => {
+      clearInterval(regInterval);
+      socket.disconnect();
+    };
   }, [myAddress]);
 
   const getStream = async (video: boolean) => {
@@ -140,7 +150,7 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const startCall = async (target: string, _t?: string, withVideo = false) => {
-    if (!socketRef.current || !myAddress) return alert('Not ready');
+    if (!socketRef.current?.connected || !myAddress) return alert('Not connected. Click Reconnect.');
     setRemoteAddress(target);
     remoteAddrRef.current = target;
     setStatus('calling');
@@ -154,6 +164,7 @@ export function useWebRTC(myAddress: string | null) {
       await pc.setLocalDescription(offer);
       const cid = [myAddress, target].sort().join('_');
       callIdRef.current = cid;
+      socketRef.current.emit('register', { address: myAddress, status: 'online' });
       socketRef.current.emit('call-offer', { to: target, from: myAddress, offer, callId: cid });
       socketRef.current.emit('join-room', cid);
     } catch { stopRing(); cleanup(); }
