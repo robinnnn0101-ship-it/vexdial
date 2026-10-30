@@ -18,7 +18,7 @@ app.get('/', (req, res) => res.json({ ok: true }));
 app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size }));
 
 app.get('/api/online/:address', (req, res) => {
-  const addr = decodeURIComponent(req.params.address);
+  const addr = decodeURIComponent(req.params.address).trim();
   const p = presence.get(addr);
   res.json({ online: !!p, status: p?.status || 'offline' });
 });
@@ -26,13 +26,14 @@ app.get('/api/online/:address', (req, res) => {
 io.on('connection', (socket) => {
   socket.on('register', ({ address, status = 'online' }) => {
     if (!address) return;
-    presence.set(address, { socketId: socket.id, status, lastSeen: Date.now() });
-    socket.data.address = address;
-    socket.join(address);
+    const clean = address.trim();
+    presence.set(clean, { socketId: socket.id, status, lastSeen: Date.now() });
+    socket.data.address = clean;
+    socket.join(clean);
   });
 
   socket.on('call-offer', ({ to, from, offer, callId }) => {
-    const target = presence.get(to);
+    const target = presence.get(to.trim());
     if (!target) {
       socket.emit('call-error', { error: 'User offline. Ask them to refresh and stay on the page.' });
       return;
@@ -44,24 +45,24 @@ io.on('connection', (socket) => {
   });
 
   socket.on('call-answer', ({ to, from, answer, callId }) => {
-    const target = presence.get(to);
+    const target = presence.get(to.trim());
     if (target) io.to(target.socketId).emit('call-answered', { from, answer, callId });
     else io.emit('call-answered', { from, answer, callId, to });
   });
 
   socket.on('ice-candidate', ({ to, candidate, callId }) => {
-    const target = presence.get(to);
+    const target = presence.get(to.trim());
     if (target) io.to(target.socketId).emit('ice-candidate', { candidate, callId });
   });
 
   socket.on('call-reject', ({ to, from, callId }) => {
-    const target = presence.get(to);
+    const target = presence.get(to.trim());
     if (target) io.to(target.socketId).emit('call-rejected', { from, callId });
     if (callId && rooms.has(callId)) rooms.delete(callId);
   });
 
   socket.on('call-hangup', ({ to, from, callId }) => {
-    const target = presence.get(to);
+    const target = presence.get(to.trim());
     if (target) io.to(target.socketId).emit('call-ended', { from, callId });
     if (callId && rooms.has(callId)) rooms.delete(callId);
   });
