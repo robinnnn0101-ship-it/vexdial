@@ -10,7 +10,6 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
 const presence = new Map();
-const rooms = new Map();
 
 function getRoomId(a, b) { return [a, b].sort().join('_'); }
 
@@ -31,45 +30,44 @@ app.get('/api/online/:address', (req, res) => {
 io.on('connection', (socket) => {
   socket.on('register', ({ address, status = 'online' }) => {
     if (!address) return;
-    const clean = address.trim();
+    const clean = String(address).trim();
+    if (!clean) return;
     presence.set(clean, { socketId: socket.id, status, lastSeen: Date.now() });
     socket.data.address = clean;
     socket.join(clean);
   });
 
   socket.on('call-offer', ({ to, from, offer, callId }) => {
-    const target = presence.get(to.trim());
+    const targetAddr = String(to || '').trim();
+    const fromAddr = String(from || '').trim();
+    const target = presence.get(targetAddr);
     if (!target) {
       socket.emit('call-error', { error: 'User offline. Ask them to refresh and stay on the page.' });
       return;
     }
-    const roomId = callId || getRoomId(from, to);
-    if (!rooms.has(roomId)) rooms.set(roomId, { participants: new Set([from]), started: Date.now() });
-    rooms.get(roomId).participants.add(from);
-    io.to(target.socketId).emit('incoming-call', { from, offer, callId: roomId });
+    const roomId = callId || getRoomId(fromAddr, targetAddr);
+    io.to(target.socketId).emit('incoming-call', { from: fromAddr, offer, callId: roomId });
   });
 
   socket.on('call-answer', ({ to, from, answer, callId }) => {
-    const target = presence.get(to.trim());
+    const target = presence.get(String(to || '').trim());
     if (target) io.to(target.socketId).emit('call-answered', { from, answer, callId });
     else io.emit('call-answered', { from, answer, callId, to });
   });
 
   socket.on('ice-candidate', ({ to, candidate, callId }) => {
-    const target = presence.get(to.trim());
+    const target = presence.get(String(to || '').trim());
     if (target) io.to(target.socketId).emit('ice-candidate', { candidate, callId });
   });
 
   socket.on('call-reject', ({ to, from, callId }) => {
-    const target = presence.get(to.trim());
+    const target = presence.get(String(to || '').trim());
     if (target) io.to(target.socketId).emit('call-rejected', { from, callId });
-    if (callId && rooms.has(callId)) rooms.delete(callId);
   });
 
   socket.on('call-hangup', ({ to, from, callId }) => {
-    const target = presence.get(to.trim());
+    const target = presence.get(String(to || '').trim());
     if (target) io.to(target.socketId).emit('call-ended', { from, callId });
-    if (callId && rooms.has(callId)) rooms.delete(callId);
   });
 
   socket.on('chat-message', ({ callId, from, text }) => {
@@ -81,10 +79,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const addr = socket.data.address;
-    if (addr) {
-      const p = presence.get(addr);
-      if (p && p.socketId === socket.id) presence.delete(addr);
-    }
+    if (!addr) return;
+    const p = presence.get(addr);
+    if (p && p.socketId === socket.id) presence.delete(addr);
   });
 });
 
