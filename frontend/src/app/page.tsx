@@ -55,15 +55,14 @@ export default function Home() {
     return () => clearInterval(i);
   }, [webrtc.status, webrtc.callStart]);
 
-  const logCall = (addr: string, type: string) => {
-    const next = [{ address: addr, type, ts: Date.now() }, ...history].slice(0, 40);
+  const logCall = (addr: string, type: string, dur = 0) => {
+    const next = [{ address: addr, type, ts: Date.now(), duration: dur }, ...history].slice(0, 40);
     setHistory(next);
     localStorage.setItem('vexdial-history', JSON.stringify(next));
   };
 
   const call = (video: boolean) => {
     if (!target.trim()) return alert('Enter address');
-    logCall(target.trim(), 'outgoing');
     webrtc.startCall(target.trim(), undefined, video);
   };
 
@@ -178,7 +177,7 @@ export default function Home() {
           <button onClick={webrtc.toggleMute} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
           <button onClick={webrtc.toggleCamera} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
           <button onClick={webrtc.startScreenShare} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">Share</button>
-          <button onClick={webrtc.hangup} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-full text-sm font-medium">End</button>
+          <button onClick={() => { if (webrtc.callStart) logCall(webrtc.remoteAddress || target, webrtc.status === 'calling' ? 'outgoing' : 'incoming', Math.floor((Date.now() - webrtc.callStart) / 1000)); webrtc.hangup(); }} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-full text-sm font-medium">End</button>
         </div>
         <div className="max-w-xl mx-auto">
           <div className="bg-white/5 rounded-xl p-3 h-24 overflow-y-auto text-sm mb-2">
@@ -271,7 +270,8 @@ export default function Home() {
               <div key={i} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
                 <div>
                   <p className="text-sm font-mono">{h.address?.slice(0,12)}…</p>
-                  <p className="text-xs text-gray-500">{h.type}</p>
+                  <p className="text-xs text-gray-500">{h.type}{h.duration ? ` · ${Math.floor(h.duration/60)}:${String(h.duration%60).padStart(2,'0')}` : ''}</p>
+                  <p className="text-xs text-gray-600">{h.ts ? new Date(h.ts).toISOString().replace('T',' ').slice(0,19) + ' UTC' : ''}</p>
                 </div>
                 <button onClick={() => { setTarget(h.address); setTab('dial'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Call</button>
               </div>
