@@ -94,6 +94,10 @@ io.on('connection', (socket) => {
   });
 });
 
+setInterval(() => {
+  console.log(`keepalive online=${presence.size}`);
+}, 60000);
+
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Signaling server listening on 0.0.0.0:${PORT}`);
