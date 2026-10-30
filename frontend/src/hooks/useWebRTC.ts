@@ -72,7 +72,8 @@ export function useWebRTC(myAddress: string | null) {
     socket.on('connect', () => { setConnected(true); register(); });
     socket.on('disconnect', () => setConnected(false));
     socket.on('reconnect', register);
-    const regInterval = setInterval(register, 15000);
+    const regInterval = setInterval(register, 8000);
+    window.addEventListener('focus', register);
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
@@ -117,6 +118,7 @@ export function useWebRTC(myAddress: string | null) {
 
     return () => {
       clearInterval(regInterval);
+      window.removeEventListener('focus', register);
       socket.disconnect();
     };
   }, [myAddress]);
