@@ -26,6 +26,7 @@ export function useWebRTC(myAddress: string | null) {
   const [cameraOff, setCameraOff] = useState(false);
   const [callStart, setCallStart] = useState<number|null>(null);
   const [chat, setChat] = useState<{from:string,text:string}[]>([]);
+  const [connected, setConnected] = useState(false);
 
   const socketRef = useRef<Socket|null>(null);
   const pcRef = useRef<RTCPeerConnection|null>(null);
@@ -68,7 +69,8 @@ export function useWebRTC(myAddress: string | null) {
     const register = () => {
       socket.emit('register', { address: myAddress, status: 'online' });
     };
-    socket.on('connect', register);
+    socket.on('connect', () => { setConnected(true); register(); });
+    socket.on('disconnect', () => setConnected(false));
     socket.on('reconnect', register);
     const regInterval = setInterval(register, 15000);
 
@@ -217,6 +219,6 @@ export function useWebRTC(myAddress: string | null) {
     setChat(p => [...p, { from: myAddress || '', text: text.trim() }]);
   };
 
-  return { status, remoteAddress, localStream, remoteStream, muted, cameraOff, chat, callStart,
+  return { status, remoteAddress, localStream, remoteStream, muted, cameraOff, chat, callStart, connected,
            startCall, acceptCall, rejectCall, hangup, toggleMute, toggleCamera, startScreenShare, sendChat };
 }
