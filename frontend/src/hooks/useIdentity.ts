@@ -21,9 +21,17 @@ function toHex(bytes: Uint8Array) {
 
 export function createLocalWallet(): { identity: VexIdentity; secret: string } {
   const secret = toHex(randomBytes(32));
-  const address = 'vex_' + toHex(randomBytes(16)).slice(0, 20);
+  const bytes = randomBytes(32);
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let num = BigInt('0x' + toHex(bytes));
+  let addr = '';
+  while (num > 0n) {
+    addr = alphabet[Number(num % 58n)] + addr;
+    num = num / 58n;
+  }
+  const address = addr.padStart(44, '1').slice(0, 44);
   return {
-    identity: { address, chain: 'vex', label: 'Vex Wallet' },
+    identity: { address, chain: 'sol', label: 'Vex Wallet' },
     secret,
   };
 }
