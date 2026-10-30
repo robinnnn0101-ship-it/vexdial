@@ -33,15 +33,17 @@ export default function Home() {
   }, [webrtc.localStream]);
 
   useEffect(() => {
-    if (webrtc.remoteStream) {
-      if (remoteRef.current) {
-        remoteRef.current.srcObject = webrtc.remoteStream;
-        remoteRef.current.play().catch(() => {});
-      }
-      if (audioRef.current) {
-        audioRef.current.srcObject = webrtc.remoteStream;
-        audioRef.current.play().catch(() => {});
-      }
+    if (webrtc.remoteStream && audioRef.current) {
+      audioRef.current.srcObject = webrtc.remoteStream;
+      audioRef.current.muted = false;
+      audioRef.current.volume = 1;
+      audioRef.current.play().catch(() => {
+        document.addEventListener('click', () => audioRef.current?.play(), { once: true });
+      });
+    }
+    if (webrtc.remoteStream && remoteRef.current) {
+      remoteRef.current.srcObject = webrtc.remoteStream;
+      remoteRef.current.play().catch(() => {});
     }
   }, [webrtc.remoteStream]);
 
@@ -147,7 +149,7 @@ export default function Home() {
       </header>
 
       <div className="flex-1 relative p-4">
-        <audio ref={audioRef} autoPlay />
+        <audio ref={audioRef} autoPlay playsInline />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
           <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto">
             <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
