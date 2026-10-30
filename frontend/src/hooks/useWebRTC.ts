@@ -109,17 +109,26 @@ export function useWebRTC(myAddress: string | null) {
   }, [myAddress]);
 
   const getStream = async (video: boolean) => {
-    const constraints: MediaStreamConstraints = { audio: true };
+    const constraints: MediaStreamConstraints = { audio: { echoCancellation: true, noiseSuppression: true } };
     if (video) constraints.video = { width: 640, height: 480 };
     return navigator.mediaDevices.getUserMedia(constraints);
   };
 
   const makePC = async (stream: MediaStream) => {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]
+    });
     pcRef.current = pc;
-    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    stream.getTracks().forEach(t => {
+      t.enabled = true;
+      pc.addTrack(t, stream);
+    });
     pc.ontrack = (e) => {
       const s = e.streams?.[0] || new MediaStream([e.track]);
+      s.getAudioTracks().forEach(t => t.enabled = true);
       setRemoteStream(s);
     };
     pc.onicecandidate = (e) => {
