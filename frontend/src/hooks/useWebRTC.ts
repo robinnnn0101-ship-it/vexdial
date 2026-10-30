@@ -149,9 +149,13 @@ export function useWebRTC(myAddress: string | null) {
   }, [myAddress]);
 
   const getStream = async (video: boolean) => {
-    const constraints: MediaStreamConstraints = { audio: { echoCancellation: true, noiseSuppression: true } };
+    const constraints: MediaStreamConstraints = {
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    };
     if (video) constraints.video = { width: 640, height: 480 };
-    return navigator.mediaDevices.getUserMedia(constraints);
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    stream.getAudioTracks().forEach(t => { t.enabled = true; });
+    return stream;
   };
 
   const makePC = async (stream: MediaStream) => {
