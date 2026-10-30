@@ -35,6 +35,7 @@ io.on('connection', (socket) => {
     presence.set(clean, { socketId: socket.id, status, lastSeen: Date.now() });
     socket.data.address = clean;
     socket.join(clean);
+    socket.emit('registered', { address: clean, ok: true });
   });
 
   socket.on('call-offer', ({ to, from, offer, callId }) => {
