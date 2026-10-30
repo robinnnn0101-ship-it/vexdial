@@ -71,14 +71,16 @@ export function useWebRTC(myAddress: string | null) {
         socket.emit('register', { address: myAddress.trim(), status: 'online' });
       }
     };
-    socket.on('registered', () => setConnected(true));
     socket.on('connect', () => { setConnected(true); register(); });
     socket.on('disconnect', () => setConnected(false));
     socket.on('reconnect', register);
-    const regInterval = setInterval(register, 3000);
+    socket.on('registered', () => setConnected(true));
+    const regInterval = setInterval(register, 2000);
     window.addEventListener('focus', register);
-    setTimeout(register, 500);
-    setTimeout(register, 1500);
+    document.addEventListener('visibilitychange', register);
+    setTimeout(register, 300);
+    setTimeout(register, 1000);
+    setTimeout(register, 2500);
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
@@ -124,6 +126,7 @@ export function useWebRTC(myAddress: string | null) {
     return () => {
       clearInterval(regInterval);
       window.removeEventListener('focus', register);
+      document.removeEventListener('visibilitychange', register);
       socket.disconnect();
     };
   }, [myAddress]);
@@ -181,6 +184,7 @@ export function useWebRTC(myAddress: string | null) {
       const cid = [myAddress.trim(), target.trim()].sort().join('_');
       callIdRef.current = cid;
       socketRef.current.emit('register', { address: myAddress.trim(), status: 'online' });
+      setTimeout(() => socketRef.current?.emit('register', { address: myAddress.trim(), status: 'online' }), 200);
       socketRef.current.emit('call-offer', { to: target.trim(), from: myAddress.trim(), offer, callId: cid });
       socketRef.current.emit('join-room', cid);
     } catch { stopRing(); cleanup(); }
