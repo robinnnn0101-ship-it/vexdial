@@ -16,17 +16,12 @@ export default function Home() {
   const [history, setHistory] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [duration, setDuration] = useState(0);
-  const [isMobileWallet, setIsMobileWallet] = useState(false);
   const [showSecret, setShowSecret] = useState<string | null>(null);
   const [onlineStatus, setOnlineStatus] = useState<'unknown'|'online'|'offline'>('unknown');
+  const [reactions, setReactions] = useState<string[]>([]);
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    const ua = navigator.userAgent || '';
-    setIsMobileWallet(/Phantom|Solflare|Trust/i.test(ua));
-  }, []);
 
   useEffect(() => {
     setContacts(JSON.parse(localStorage.getItem('vexdial-contacts') || '[]'));
@@ -69,7 +64,7 @@ export default function Home() {
   };
 
   const addContact = () => {
-    const addr = prompt('Wallet address (any chain)');
+    const addr = prompt('Wallet address');
     if (!addr) return;
     const name = prompt('Name') || '';
     const next = [{ address: addr, name }, ...contacts.filter(c => c.address !== addr)];
@@ -98,162 +93,178 @@ export default function Home() {
     if (!eth) return alert('MetaMask not found');
     try {
       const accounts = await eth.request({ method: 'eth_requestAccounts' });
-      if (accounts[0]) {
-        saveIdentity({ address: accounts[0], chain: 'eth', label: 'MetaMask' });
-      }
-    } catch (e) { alert('MetaMask connection failed'); }
+      if (accounts[0]) saveIdentity({ address: accounts[0], chain: 'eth', label: 'MetaMask' });
+    } catch { alert('MetaMask failed'); }
+  };
+
+  const sendReaction = (emoji: string) => {
+    setReactions(p => [...p, emoji]);
+    setTimeout(() => setReactions(p => p.slice(1)), 2000);
   };
 
   if (!myAddress) return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col items-center justify-center p-4">
-      <h1 className="text-5xl font-bold text-cyan-400 mb-2">VexDial</h1>
-      <p className="text-gray-400 mb-6 text-center">Wallet-to-wallet encrypted calls across chains</p>
-      <WalletMultiButton />
-      <button onClick={makeVexWallet} className="mt-4 px-6 py-3 bg-cyan-600 rounded-full font-semibold">
-        Create Vex Wallet
-      </button>
-      <button onClick={connectMetaMask} className="mt-3 px-6 py-3 bg-orange-600 rounded-full font-semibold">
-        Connect MetaMask
-      </button>
-      <p className="text-xs text-gray-500 mt-3 max-w-xs text-center">Keys never leave your browser. MetaMask and Vex Wallet are non-custodial.</p>
-      {isMobileWallet && (
-        <button onClick={() => window.open(window.location.href, '_blank')} className="mt-4 px-6 py-2 bg-gray-700 rounded-full text-sm">
-          Open in Chrome / Safari
-        </button>
-      )}
-      <a href="https://x.com/VexDial" target="_blank" className="mt-6 text-sm text-cyan-400 hover:underline">@VexDial</a>
+    <div className="min-h-screen bg-[#0b0b10] text-white flex items-center justify-center p-6">
+      <div className="w-full max-w-md text-center">
+        <h1 className="text-5xl font-bold tracking-tight text-cyan-400">VexDial</h1>
+        <p className="mt-2 text-gray-400">Encrypted wallet-to-wallet calls</p>
+        <div className="mt-10 space-y-3">
+          <WalletMultiButton className="!w-full !justify-center !py-3 !rounded-xl" />
+          <button onClick={makeVexWallet} className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium transition">Create Vex Wallet</button>
+          <button onClick={connectMetaMask} className="w-full py-3 bg-orange-600 hover:bg-orange-500 rounded-xl font-medium transition">Connect MetaMask</button>
+        </div>
+        <p className="mt-6 text-xs text-gray-500">Non-custodial. Keys stay on your device.</p>
+        <a href="https://x.com/VexDial" className="mt-4 inline-block text-sm text-cyan-400">@VexDial</a>
+      </div>
     </div>
   );
 
   if (webrtc.status === 'ringing') return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
-      <div className="text-center bg-gray-900/80 p-10 rounded-2xl border border-cyan-500/30">
-        <p className="text-2xl mb-2">Incoming Call</p>
-        <p className="text-sm text-gray-400 mb-6">{webrtc.remoteAddress?.slice(0,8)}...{webrtc.remoteAddress?.slice(-4)}</p>
-        <div className="flex gap-4 justify-center">
-          <button onClick={webrtc.acceptCall} className="px-10 py-3 bg-green-600 rounded-full text-lg font-semibold">Accept</button>
-          <button onClick={webrtc.rejectCall} className="px-10 py-3 bg-red-600 rounded-full text-lg font-semibold">Reject</button>
+    <div className="min-h-screen bg-[#0b0b10] text-white flex items-center justify-center">
+      <div className="bg-[#16161d] border border-white/10 rounded-2xl p-10 text-center max-w-sm w-full">
+        <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/20 flex items-center justify-center mb-4">
+          <span className="text-2xl">📞</span>
+        </div>
+        <h2 className="text-2xl font-semibold">Incoming Call</h2>
+        <p className="text-gray-400 text-sm mt-2 break-all">{webrtc.remoteAddress}</p>
+        <div className="flex gap-3 mt-8">
+          <button onClick={webrtc.acceptCall} className="flex-1 py-3 bg-emerald-600 rounded-xl font-medium">Accept</button>
+          <button onClick={webrtc.rejectCall} className="flex-1 py-3 bg-red-600 rounded-xl font-medium">Decline</button>
         </div>
       </div>
     </div>
   );
 
   if (webrtc.status === 'calling' || webrtc.status === 'connected') return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center text-cyan-400 mb-4 text-lg">
-          {webrtc.status === 'calling' ? 'Calling...' : `Connected ${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')}`}
+    <div className="min-h-screen bg-[#0b0b10] text-white flex flex-col">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div>
+          <span className="text-cyan-400 font-semibold">VexDial</span>
+          <span className="ml-3 text-sm text-gray-400">
+            {webrtc.status === 'calling' ? 'Calling…' : `${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')}`}
+          </span>
         </div>
+        <span className="text-xs text-gray-500 truncate max-w-[200px]">{webrtc.remoteAddress}</span>
+      </header>
+
+      <div className="flex-1 relative p-4">
         <audio ref={audioRef} autoPlay />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="bg-black rounded-xl overflow-hidden aspect-video relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
+          <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto">
             <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-            <span className="absolute bottom-2 left-2 text-xs bg-black/60 px-2 py-1 rounded">You</span>
+            <span className="absolute bottom-3 left-3 text-xs bg-black/70 px-2 py-1 rounded-lg">You</span>
           </div>
-          <div className="bg-black rounded-xl overflow-hidden aspect-video relative">
+          <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto">
             <video ref={remoteRef} autoPlay playsInline className="w-full h-full object-cover" />
-            <span className="absolute bottom-2 left-2 text-xs bg-black/60 px-2 py-1 rounded">Remote</span>
+            <span className="absolute bottom-3 left-3 text-xs bg-black/70 px-2 py-1 rounded-lg">Remote</span>
           </div>
         </div>
-        <div className="flex justify-center gap-3 mb-4 flex-wrap">
-          <button onClick={webrtc.toggleMute} className="px-4 py-2 bg-gray-800 rounded-full">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
-          <button onClick={webrtc.toggleCamera} className="px-4 py-2 bg-gray-800 rounded-full">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
-          <button onClick={webrtc.startScreenShare} className="px-4 py-2 bg-purple-700 rounded-full">Share</button>
-          <button onClick={webrtc.hangup} className="px-6 py-2 bg-red-600 rounded-full">Hangup</button>
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-none">
+          {reactions.map((r, i) => <span key={i} className="text-3xl animate-bounce">{r}</span>)}
         </div>
-        <div className="bg-gray-900/70 rounded-xl p-3 mb-2 h-28 overflow-y-auto text-sm">
-          {webrtc.chat.map((m,i) => <div key={i}><b className="text-cyan-400">{m.from?.slice(0,6)}:</b> {m.text}</div>)}
+      </div>
+
+      <div className="border-t border-white/10 p-4">
+        <div className="flex justify-center gap-2 mb-4">
+          {['👍','❤️','😂','👏','🔥'].map(e => (
+            <button key={e} onClick={() => sendReaction(e)} className="text-xl hover:scale-110 transition">{e}</button>
+          ))}
         </div>
-        <form onSubmit={e => { e.preventDefault(); webrtc.sendChat(chatInput); setChatInput(''); }} className="flex gap-2">
-          <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-black border border-cyan-700 rounded px-3 py-2" placeholder="Message..." />
-          <button className="px-4 py-2 bg-cyan-600 rounded">Send</button>
-        </form>
+        <div className="flex justify-center gap-3 mb-4">
+          <button onClick={webrtc.toggleMute} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
+          <button onClick={webrtc.toggleCamera} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
+          <button onClick={webrtc.startScreenShare} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">Share</button>
+          <button onClick={webrtc.hangup} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-full text-sm font-medium">End</button>
+        </div>
+        <div className="max-w-xl mx-auto">
+          <div className="bg-white/5 rounded-xl p-3 h-24 overflow-y-auto text-sm mb-2">
+            {webrtc.chat.map((m,i) => <div key={i}><span className="text-cyan-400">{m.from?.slice(0,6)}</span> {m.text}</div>)}
+          </div>
+          <form onSubmit={e => { e.preventDefault(); webrtc.sendChat(chatInput); setChatInput(''); }} className="flex gap-2">
+            <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm" placeholder="Message" />
+            <button className="px-4 py-2 bg-cyan-600 rounded-xl text-sm">Send</button>
+          </form>
+        </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white p-4">
-      <div className="max-w-lg mx-auto">
-        <header className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-[#0b0b10] text-white">
+      <div className="max-w-lg mx-auto p-6">
+        <header className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-cyan-400">VexDial</h1>
-            <a href="https://x.com/VexDial" target="_blank" className="text-xs text-cyan-400 hover:underline">@VexDial</a>
+            <h1 className="text-2xl font-bold text-cyan-400">VexDial</h1>
+            <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
           </div>
           <div className="flex items-center gap-2">
-            {connected ? <WalletMultiButton /> : (
-              <button onClick={clearIdentity} className="px-3 py-1 text-xs bg-gray-700 rounded">Logout</button>
-            )}
-            <button onClick={() => window.location.reload()} className="px-3 py-1 text-xs bg-gray-700 rounded">Reconnect</button>
+            {connected ? <WalletMultiButton /> : <button onClick={clearIdentity} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Logout</button>}
+            <button onClick={() => window.location.reload()} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Reconnect</button>
           </div>
         </header>
 
         {showSecret && (
-          <div className="bg-yellow-900/40 border border-yellow-600 rounded-xl p-4 mb-4 text-sm">
-            <p className="font-semibold mb-2">Backup your secret (shown once)</p>
-            <p className="font-mono break-all text-xs">{showSecret}</p>
-            <button onClick={() => setShowSecret(null)} className="mt-2 px-3 py-1 bg-yellow-700 rounded text-xs">I saved it</button>
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 text-sm">
+            <p className="font-medium text-amber-300 mb-2">Save your secret</p>
+            <p className="font-mono text-xs break-all text-amber-100/80">{showSecret}</p>
+            <button onClick={() => setShowSecret(null)} className="mt-3 text-xs px-3 py-1 bg-amber-600 rounded-lg">Done</button>
           </div>
         )}
 
-        <div className="text-xs text-gray-400 mb-4 flex items-center gap-2">
-          Your ID: <span className="font-mono break-all">{myAddress}</span>
-          <button onClick={() => navigator.clipboard.writeText(myAddress || '')} className="px-2 py-0.5 bg-gray-700 rounded text-xs shrink-0">Copy</button>
+        <div className="bg-white/5 rounded-xl p-3 mb-6 flex items-center justify-between text-sm">
+          <span className="font-mono text-xs break-all text-gray-300">{myAddress}</span>
+          <button onClick={() => navigator.clipboard.writeText(myAddress || '')} className="ml-2 shrink-0 px-3 py-1 bg-white/10 rounded-lg text-xs">Copy</button>
         </div>
 
-        <div className="flex gap-2 mb-4">
-          <button onClick={() => setTab('dial')} className={`px-4 py-2 rounded-lg text-sm ${tab==='dial'?'bg-cyan-600':'bg-gray-800'}`}>Dial</button>
-          <button onClick={() => setTab('contacts')} className={`px-4 py-2 rounded-lg text-sm ${tab==='contacts'?'bg-cyan-600':'bg-gray-800'}`}>VexBook</button>
-          <button onClick={() => setTab('history')} className={`px-4 py-2 rounded-lg text-sm ${tab==='history'?'bg-cyan-600':'bg-gray-800'}`}>History</button>
+        <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-6">
+          {['dial','contacts','history'].map(t => (
+            <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-lg text-sm capitalize ${tab===t ? 'bg-cyan-600' : 'text-gray-400'}`}>{t === 'contacts' ? 'VexBook' : t}</button>
+          ))}
         </div>
 
         {tab === 'dial' && (
-          <div className="bg-gray-900/70 p-6 rounded-2xl border border-cyan-500/20">
-            <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Any wallet address (SOL, ETH, BTC, BNB...)" className="w-full bg-black border border-cyan-700 rounded-lg px-4 py-3 mb-2" />
-            <div className="flex items-center gap-2 mb-4">
-              <button onClick={checkOnline} className="px-3 py-1 text-xs bg-gray-700 rounded">Check Status</button>
-              {onlineStatus !== 'unknown' && (
-                <span className={`text-xs ${onlineStatus === 'online' ? 'text-green-400' : 'text-red-400'}`}>
-                  {onlineStatus === 'online' ? 'Online' : 'Offline'}
-                </span>
-              )}
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+            <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Wallet address" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
+            <div className="flex items-center gap-3 mb-4">
+              <button onClick={checkOnline} className="px-3 py-1.5 text-xs bg-white/10 rounded-lg">Check</button>
+              {onlineStatus !== 'unknown' && <span className={`text-xs ${onlineStatus==='online'?'text-emerald-400':'text-red-400'}`}>{onlineStatus}</span>}
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => call(false)} className="flex-1 py-3 bg-emerald-600 rounded-lg font-semibold">VexVoice</button>
-              <button onClick={() => call(true)} className="flex-1 py-3 bg-cyan-600 rounded-lg font-semibold">VexVideo</button>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => call(false)} className="py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium text-sm">VexVoice</button>
+              <button onClick={() => call(true)} className="py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium text-sm">VexVideo</button>
             </div>
-            <p className="text-xs text-gray-500 mt-3">Interchain calling works. Enter any address to call.</p>
           </div>
         )}
 
         {tab === 'contacts' && (
-          <div className="bg-gray-900/70 p-6 rounded-2xl border border-cyan-500/20">
-            <div className="flex justify-between mb-4">
-              <h2 className="text-xl">VexBook</h2>
-              <button onClick={addContact} className="px-3 py-1 bg-cyan-600 rounded text-sm">Add</button>
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-medium">VexBook</h2>
+              <button onClick={addContact} className="text-xs px-3 py-1.5 bg-cyan-600 rounded-lg">Add</button>
             </div>
+            {contacts.length === 0 && <p className="text-sm text-gray-500">No contacts yet</p>}
             {contacts.map(c => (
-              <div key={c.address} className="flex justify-between items-center bg-black/40 rounded-lg p-3 mb-2">
+              <div key={c.address} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
                 <div>
-                  <p>{c.name || 'Unnamed'}</p>
-                  <p className="text-xs text-gray-400">{c.address.slice(0,10)}...</p>
+                  <p className="text-sm">{c.name || 'Unnamed'}</p>
+                  <p className="text-xs text-gray-500 font-mono">{c.address.slice(0,12)}…</p>
                 </div>
-                <button onClick={() => { setTarget(c.address); setTab('dial'); }} className="px-3 py-1 bg-cyan-700 rounded text-xs">Call</button>
+                <button onClick={() => { setTarget(c.address); setTab('dial'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Call</button>
               </div>
             ))}
           </div>
         )}
 
         {tab === 'history' && (
-          <div className="bg-gray-900/70 p-6 rounded-2xl border border-cyan-500/20">
-            <h2 className="text-xl mb-4">History</h2>
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+            <h2 className="font-medium mb-4">History</h2>
+            {history.length === 0 && <p className="text-sm text-gray-500">No calls yet</p>}
             {history.map((h,i) => (
-              <div key={i} className="flex justify-between items-center bg-black/40 rounded-lg p-3 mb-2">
+              <div key={i} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
                 <div>
-                  <p className="text-sm">{h.address?.slice(0,10)}...</p>
-                  <p className="text-xs text-gray-400">{h.type}</p>
+                  <p className="text-sm font-mono">{h.address?.slice(0,12)}…</p>
+                  <p className="text-xs text-gray-500">{h.type}</p>
                 </div>
-                <button onClick={() => { setTarget(h.address); setTab('dial'); }} className="px-3 py-1 bg-cyan-700 rounded text-xs">Call</button>
+                <button onClick={() => { setTarget(h.address); setTab('dial'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Call</button>
               </div>
             ))}
           </div>
