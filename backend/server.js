@@ -17,6 +17,11 @@ function getRoomId(a, b) { return [a, b].sort().join('_'); }
 app.get('/', (req, res) => res.json({ ok: true }));
 app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size }));
 
+app.get('/api/online', (req, res) => {
+  const list = Array.from(presence.keys());
+  res.json({ count: list.length, addresses: list });
+});
+
 app.get('/api/online/:address', (req, res) => {
   const addr = decodeURIComponent(req.params.address).trim();
   const p = presence.get(addr);
@@ -76,7 +81,10 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const addr = socket.data.address;
-    if (addr) presence.delete(addr);
+    if (addr) {
+      const p = presence.get(addr);
+      if (p && p.socketId === socket.id) presence.delete(addr);
+    }
   });
 });
 
