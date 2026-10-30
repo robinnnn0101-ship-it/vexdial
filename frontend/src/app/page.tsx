@@ -18,6 +18,7 @@ export default function Home() {
   const [duration, setDuration] = useState(0);
   const [isMobileWallet, setIsMobileWallet] = useState(false);
   const [showSecret, setShowSecret] = useState<string | null>(null);
+  const [onlineStatus, setOnlineStatus] = useState<'unknown'|'online'|'offline'>('unknown');
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -82,6 +83,27 @@ export default function Home() {
     setShowSecret(secret);
   };
 
+  const checkOnline = async () => {
+    if (!target.trim()) return;
+    try {
+      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
+      const r = await fetch(`${base}/api/online/${encodeURIComponent(target.trim())}`);
+      const data = await r.json();
+      setOnlineStatus(data.online ? 'online' : 'offline');
+    } catch { setOnlineStatus('unknown'); }
+  };
+
+  const connectMetaMask = async () => {
+    const eth = (window as any).ethereum;
+    if (!eth) return alert('MetaMask not found');
+    try {
+      const accounts = await eth.request({ method: 'eth_requestAccounts' });
+      if (accounts[0]) {
+        saveIdentity({ address: accounts[0], chain: 'eth', label: 'MetaMask' });
+      }
+    } catch (e) { alert('MetaMask connection failed'); }
+  };
+
   if (!myAddress) return (
     <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col items-center justify-center p-4">
       <h1 className="text-5xl font-bold text-cyan-400 mb-2">VexDial</h1>
@@ -90,7 +112,10 @@ export default function Home() {
       <button onClick={makeVexWallet} className="mt-4 px-6 py-3 bg-cyan-600 rounded-full font-semibold">
         Create Vex Wallet
       </button>
-      <p className="text-xs text-gray-500 mt-3 max-w-xs text-center">Keys are generated in your browser and never sent to any server.</p>
+      <button onClick={connectMetaMask} className="mt-3 px-6 py-3 bg-orange-600 rounded-full font-semibold">
+        Connect MetaMask
+      </button>
+      <p className="text-xs text-gray-500 mt-3 max-w-xs text-center">Keys never leave your browser. MetaMask and Vex Wallet are non-custodial.</p>
       {isMobileWallet && (
         <button onClick={() => window.open(window.location.href, '_blank')} className="mt-4 px-6 py-2 bg-gray-700 rounded-full text-sm">
           Open in Chrome / Safari
@@ -181,7 +206,15 @@ export default function Home() {
 
         {tab === 'dial' && (
           <div className="bg-gray-900/70 p-6 rounded-2xl border border-cyan-500/20">
-            <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Any wallet address (SOL, ETH, BTC, BNB...)" className="w-full bg-black border border-cyan-700 rounded-lg px-4 py-3 mb-4" />
+            <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Any wallet address (SOL, ETH, BTC, BNB...)" className="w-full bg-black border border-cyan-700 rounded-lg px-4 py-3 mb-2" />
+            <div className="flex items-center gap-2 mb-4">
+              <button onClick={checkOnline} className="px-3 py-1 text-xs bg-gray-700 rounded">Check Status</button>
+              {onlineStatus !== 'unknown' && (
+                <span className={`text-xs ${onlineStatus === 'online' ? 'text-green-400' : 'text-red-400'}`}>
+                  {onlineStatus === 'online' ? 'Online' : 'Offline'}
+                </span>
+              )}
+            </div>
             <div className="flex gap-3">
               <button onClick={() => call(false)} className="flex-1 py-3 bg-emerald-600 rounded-lg font-semibold">VexVoice</button>
               <button onClick={() => call(true)} className="flex-1 py-3 bg-cyan-600 rounded-lg font-semibold">VexVideo</button>
