@@ -200,6 +200,7 @@ export default function Home() {
               <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
             </div>
             <div className={`w-3 h-3 rounded-full ${webrtc.connected ? 'bg-emerald-500' : 'bg-red-500'}`} title={webrtc.connected ? 'Online' : 'Offline'} />
+            <span className="text-xs text-gray-500">{webrtc.connected ? 'online' : 'offline'}</span>
           </div>
           <div className="flex items-center gap-2">
             {connected ? <WalletMultiButton /> : <button onClick={clearIdentity} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Logout</button>}
