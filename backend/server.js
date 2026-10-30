@@ -7,21 +7,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
-});
+const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
 const presence = new Map();
 const rooms = new Map();
 
-const vexNames = new Map();
-const addressToVex = new Map();
-
-function getRoomId(a, b) {
-  return [a, b].sort().join('_');
-}
+function getRoomId(a, b) { return [a, b].sort().join('_'); }
 
 app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size }));
+
+app.get('/api/online/:address', (req, res) => {
+  const addr = decodeURIComponent(req.params.address);
+  const p = presence.get(addr);
+  res.json({ online: !!p, status: p?.status || 'offline' });
+});
 
 io.on('connection', (socket) => {
   socket.on('register', ({ address, status = 'online' }) => {
@@ -29,6 +28,7 @@ io.on('connection', (socket) => {
     presence.set(address, { socketId: socket.id, status, lastSeen: Date.now() });
     socket.data.address = address;
     socket.join(address);
+    io.emit('presence-update', Object.fromEntries(presence));
   });
 
   socket.on('call-offer', ({ to, from, offer, callId }) => {
@@ -45,11 +45,8 @@ io.on('connection', (socket) => {
 
   socket.on('call-answer', ({ to, from, answer, callId }) => {
     const target = presence.get(to);
-    if (target) {
-      io.to(target.socketId).emit('call-answered', { from, answer, callId });
-    } else {
-      io.emit('call-answered', { from, answer, callId, to });
-    }
+    if (target) io.to(target.socketId).emit('call-answered', { from, answer, callId });
+    else io.emit('call-answered', { from, answer, callId, to });
   });
 
   socket.on('ice-candidate', ({ to, candidate, callId }) => {
@@ -74,17 +71,16 @@ io.on('connection', (socket) => {
     io.to(callId).emit('chat-message', { from, text, ts: Date.now() });
   });
 
-  socket.on('join-room', (callId) => {
-    if (callId) socket.join(callId);
-  });
+  socket.on('join-room', (callId) => { if (callId) socket.join(callId); });
 
   socket.on('disconnect', () => {
     const addr = socket.data.address;
-    if (addr) presence.delete(addr);
+    if (addr) {
+      presence.delete(addr);
+      io.emit('presence-update', Object.fromEntries(presence));
+    }
   });
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Signaling server running on port ${PORT}`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`Signaling on ${PORT}`));
