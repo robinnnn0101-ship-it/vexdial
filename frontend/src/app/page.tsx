@@ -130,7 +130,7 @@ export default function Home() {
         <h2 className="text-2xl font-semibold">Incoming Call</h2>
         <p className="text-gray-400 text-sm mt-2 break-all">{webrtc.remoteAddress}</p>
         <div className="flex gap-3 mt-8">
-          <button onClick={webrtc.acceptCall} className="flex-1 py-3 bg-emerald-600 rounded-xl font-medium">Accept</button>
+          <button onClick={() => { logCall(webrtc.remoteAddress || '', 'incoming', 0); webrtc.acceptCall(); }} className="flex-1 py-3 bg-emerald-600 rounded-xl font-medium">Accept</button>
           <button onClick={webrtc.rejectCall} className="flex-1 py-3 bg-red-600 rounded-xl font-medium">Decline</button>
         </div>
       </div>
@@ -181,7 +181,7 @@ export default function Home() {
         </div>
         <div className="max-w-xl mx-auto">
           <div className="bg-white/5 rounded-xl p-3 h-24 overflow-y-auto text-sm mb-2">
-            {webrtc.chat.map((m,i) => <div key={i}><span className="text-cyan-400">{m.from?.slice(0,6)}</span> {m.text}</div>)}
+            {webrtc.chat.map((m,i) => <div key={i} className={m.missed ? 'text-red-400' : ''}><span className="text-cyan-400">{m.from?.slice(0,6)}</span> {m.text}{m.status ? ` · ${m.status}` : ''}</div>)}
           </div>
           <form onSubmit={e => { e.preventDefault(); webrtc.sendChat(chatInput); setChatInput(''); }} className="flex gap-2">
             <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm" placeholder="Message" />
@@ -270,7 +270,7 @@ export default function Home() {
               <div key={i} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
                 <div>
                   <p className="text-sm font-mono">{h.address?.slice(0,12)}…</p>
-                  <p className="text-xs text-gray-500">{h.type}{h.duration ? ` · ${Math.floor(h.duration/60)}:${String(h.duration%60).padStart(2,'0')}` : ''}</p>
+                  <p className={`text-xs ${h.type==='missed'?'text-red-400':'text-gray-500'}`}>{h.type}{h.duration ? ` · ${Math.floor(h.duration/60)}:${String(h.duration%60).padStart(2,'0')}` : ''}</p>
                   <p className="text-xs text-gray-600">{h.ts ? new Date(h.ts).toISOString().replace('T',' ').slice(0,19) + ' UTC' : ''}</p>
                 </div>
                 <button onClick={() => { setTarget(h.address); setTab('dial'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Call</button>
