@@ -196,7 +196,10 @@ export default function Home() {
           </div>
         )}
 
-        <div className="text-xs text-gray-400 mb-4">Your ID: {myAddress?.slice(0,12)}...{myAddress?.slice(-6)}</div>
+        <div className="text-xs text-gray-400 mb-4 flex items-center gap-2">
+          Your ID: <span className="font-mono break-all">{myAddress}</span>
+          <button onClick={() => navigator.clipboard.writeText(myAddress || '')} className="px-2 py-0.5 bg-gray-700 rounded text-xs shrink-0">Copy</button>
+        </div>
 
         <div className="flex gap-2 mb-4">
           <button onClick={() => setTab('dial')} className={`px-4 py-2 rounded-lg text-sm ${tab==='dial'?'bg-cyan-600':'bg-gray-800'}`}>Dial</button>
