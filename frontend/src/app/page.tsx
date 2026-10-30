@@ -108,9 +108,9 @@ export default function Home() {
   if (!myAddress) return (
     <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-2xl font-bold">V</div>
-        <h1 className="text-5xl font-bold tracking-tight text-cyan-400">VexDial</h1>
-        <p className="mt-2 text-gray-400">Your wallet is your phone number</p>
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 flex items-center justify-center text-2xl">📞</div>
+        <h1 className="text-5xl font-bold tracking-tight text-white">VexDial</h1>
+        <p className="mt-2 text-cyan-400 text-sm tracking-widest">WALLET-TO-WALLET CALLING</p>
         <div className="mt-10 space-y-3">
           <WalletMultiButton className="!w-full !justify-center !py-3 !rounded-xl" />
           <button onClick={makeVexWallet} className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium transition">Create Vex Wallet</button>
@@ -203,10 +203,10 @@ export default function Home() {
       <div className="max-w-lg mx-auto p-6">
         <header className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold">V</div>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 flex items-center justify-center text-sm">📞</div>
             <div>
-              <h1 className="text-2xl font-bold text-cyan-400">VexDial</h1>
-              <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
+              <h1 className="text-2xl font-bold text-white">VexDial</h1>
+              <p className="text-xs text-cyan-400 tracking-wider">WALLET-TO-WALLET</p>
             </div>
             <div className={`w-3 h-3 rounded-full ${webrtc.connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
             <span className="text-xs text-gray-500">{webrtc.connected ? 'online' : 'offline'}</span>
