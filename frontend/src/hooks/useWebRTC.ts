@@ -71,6 +71,13 @@ export function useWebRTC(myAddress: string | null) {
       if (socket.connected && myAddress) {
         socket.emit('register', { address: myAddress.trim(), status: 'online' });
       }
+      if (myAddress) {
+        fetch(`${SIGNALING}/api/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: myAddress.trim() }),
+        }).catch(() => {});
+      }
     };
     socket.on('connect', () => { setConnected(true); register(); });
     socket.on('disconnect', () => setConnected(false));
