@@ -27,6 +27,14 @@ app.get('/api/online/:address', (req, res) => {
   res.json({ online: !!p, status: p?.status || 'offline' });
 });
 
+app.post('/api/register', (req, res) => {
+  const address = String(req.body?.address || '').trim();
+  if (!address) return res.json({ ok: false });
+  const existing = presence.get(address);
+  presence.set(address, { socketId: existing?.socketId || 'http', status: 'online', lastSeen: Date.now() });
+  res.json({ ok: true, address });
+});
+
 io.on('connection', (socket) => {
   socket.on('register', ({ address, status = 'online' }) => {
     if (!address) return;
@@ -42,7 +50,7 @@ io.on('connection', (socket) => {
     const targetAddr = String(to || '').trim();
     const fromAddr = String(from || '').trim();
     const target = presence.get(targetAddr);
-    if (!target) {
+    if (!target || target.socketId === 'http') {
       socket.emit('call-error', { error: 'User offline. Ask them to refresh and stay on the page.' });
       return;
     }
@@ -52,23 +60,23 @@ io.on('connection', (socket) => {
 
   socket.on('call-answer', ({ to, from, answer, callId }) => {
     const target = presence.get(String(to || '').trim());
-    if (target) io.to(target.socketId).emit('call-answered', { from, answer, callId });
+    if (target && target.socketId !== 'http') io.to(target.socketId).emit('call-answered', { from, answer, callId });
     else io.emit('call-answered', { from, answer, callId, to });
   });
 
   socket.on('ice-candidate', ({ to, candidate, callId }) => {
     const target = presence.get(String(to || '').trim());
-    if (target) io.to(target.socketId).emit('ice-candidate', { candidate, callId });
+    if (target && target.socketId !== 'http') io.to(target.socketId).emit('ice-candidate', { candidate, callId });
   });
 
   socket.on('call-reject', ({ to, from, callId }) => {
     const target = presence.get(String(to || '').trim());
-    if (target) io.to(target.socketId).emit('call-rejected', { from, callId });
+    if (target && target.socketId !== 'http') io.to(target.socketId).emit('call-rejected', { from, callId });
   });
 
   socket.on('call-hangup', ({ to, from, callId }) => {
     const target = presence.get(String(to || '').trim());
-    if (target) io.to(target.socketId).emit('call-ended', { from, callId });
+    if (target && target.socketId !== 'http') io.to(target.socketId).emit('call-ended', { from, callId });
   });
 
   socket.on('chat-message', ({ callId, from, text }) => {
