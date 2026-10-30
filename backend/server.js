@@ -10,6 +10,8 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
 const presence = new Map();
+const offlineMessages = new Map();
+const missedCalls = new Map();
 
 function getRoomId(a, b) { return [a, b].sort().join('_'); }
 
@@ -35,6 +37,19 @@ app.post('/api/register', (req, res) => {
   res.json({ ok: true, address });
 });
 
+function deliverOffline(addr, socketId) {
+  const msgs = offlineMessages.get(addr) || [];
+  const calls = missedCalls.get(addr) || [];
+  if (msgs.length) {
+    io.to(socketId).emit('offline-messages', msgs);
+    offlineMessages.delete(addr);
+  }
+  if (calls.length) {
+    io.to(socketId).emit('missed-calls', calls);
+    missedCalls.delete(addr);
+  }
+}
+
 io.on('connection', (socket) => {
   socket.on('register', ({ address, status = 'online' }) => {
     if (!address) return;
@@ -44,6 +59,7 @@ io.on('connection', (socket) => {
     socket.data.address = clean;
     socket.join(clean);
     socket.emit('registered', { address: clean, ok: true });
+    deliverOffline(clean, socket.id);
   });
 
   socket.on('call-offer', ({ to, from, offer, callId }) => {
@@ -51,7 +67,10 @@ io.on('connection', (socket) => {
     const fromAddr = String(from || '').trim();
     const target = presence.get(targetAddr);
     if (!target || target.socketId === 'http') {
-      socket.emit('call-error', { error: 'User offline. Ask them to refresh and stay on the page.' });
+      const list = missedCalls.get(targetAddr) || [];
+      list.push({ from: fromAddr, ts: Date.now() });
+      missedCalls.set(targetAddr, list);
+      socket.emit('call-error', { error: 'User offline. Missed call saved.' });
       return;
     }
     const roomId = callId || getRoomId(fromAddr, targetAddr);
@@ -79,9 +98,26 @@ io.on('connection', (socket) => {
     if (target && target.socketId !== 'http') io.to(target.socketId).emit('call-ended', { from, callId });
   });
 
-  socket.on('chat-message', ({ callId, from, text }) => {
-    if (!callId || !text) return;
-    io.to(callId).emit('chat-message', { from, text, ts: Date.now() });
+  socket.on('chat-message', ({ to, from, text }) => {
+    if (!to || !from || !text) return;
+    const msg = { from, to, text, ts: Date.now(), id: Date.now().toString(36) };
+    const target = presence.get(String(to).trim());
+    if (target && target.socketId !== 'http') {
+      io.to(target.socketId).emit('chat-message', msg);
+      socket.emit('msg-status', { id: msg.id, status: 'delivered' });
+    } else {
+      const list = offlineMessages.get(to) || [];
+      list.push(msg);
+      offlineMessages.set(to, list);
+      socket.emit('msg-status', { id: msg.id, status: 'sent' });
+    }
+  });
+
+  socket.on('msg-read', ({ to, id }) => {
+    const target = presence.get(String(to || '').trim());
+    if (target && target.socketId !== 'http') {
+      io.to(target.socketId).emit('msg-status', { id, status: 'read' });
+    }
   });
 
   socket.on('join-room', (callId) => { if (callId) socket.join(callId); });
