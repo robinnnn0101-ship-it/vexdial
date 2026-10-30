@@ -67,13 +67,17 @@ export function useWebRTC(myAddress: string | null) {
     socketRef.current = socket;
 
     const register = () => {
-      socket.emit('register', { address: myAddress.trim(), status: 'online' });
+      if (socket.connected && myAddress) {
+        socket.emit('register', { address: myAddress.trim(), status: 'online' });
+      }
     };
     socket.on('connect', () => { setConnected(true); register(); });
     socket.on('disconnect', () => setConnected(false));
     socket.on('reconnect', register);
-    const regInterval = setInterval(register, 8000);
+    const regInterval = setInterval(register, 3000);
     window.addEventListener('focus', register);
+    setTimeout(register, 500);
+    setTimeout(register, 1500);
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
