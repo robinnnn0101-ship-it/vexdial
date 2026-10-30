@@ -67,16 +67,22 @@ export function useWebRTC(myAddress: string | null) {
     });
     socketRef.current = socket;
 
-    const register = () => {
-      if (socket.connected && myAddress) {
-        socket.emit('register', { address: myAddress.trim(), status: 'online' });
+    const register = async () => {
+      if (!myAddress) return;
+      const addr = myAddress.trim();
+      if (socket.connected) {
+        socket.emit('register', { address: addr, status: 'online' });
       }
-      if (myAddress) {
-        fetch(`${SIGNALING}/api/register`, {
+      try {
+        await fetch(`${SIGNALING}/api/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address: myAddress.trim() }),
-        }).catch(() => {});
+          body: JSON.stringify({ address: addr }),
+          mode: 'cors',
+        });
+        setConnected(true);
+      } catch (e) {
+        console.log('register failed', e);
       }
     };
     socket.on('connect', () => { setConnected(true); register(); });
