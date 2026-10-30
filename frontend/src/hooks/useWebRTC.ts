@@ -25,7 +25,7 @@ export function useWebRTC(myAddress: string | null) {
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [callStart, setCallStart] = useState<number|null>(null);
-  const [chat, setChat] = useState<{from:string,text:string}[]>([]);
+  const [chat, setChat] = useState<{from:string,text:string,ts?:number,id?:string,status?:string,missed?:boolean}[]>([]);
   const [connected, setConnected] = useState(false);
 
   const socketRef = useRef<Socket|null>(null);
@@ -48,7 +48,6 @@ export function useWebRTC(myAddress: string | null) {
     setStatus('idle');
     setRemoteAddress(null);
     setCallStart(null);
-    setChat([]);
     pendingOffer.current = null;
     pendingCands.current = [];
   };
@@ -139,6 +138,15 @@ export function useWebRTC(myAddress: string | null) {
     });
     socket.on('call-ended', () => { stopRing(); cleanup(); });
     socket.on('chat-message', (msg) => setChat(p => [...p, msg]));
+    socket.on('offline-messages', (msgs) => {
+      setChat(p => [...p, ...msgs.map(m => ({ ...m, status: 'delivered' }))]);
+    });
+    socket.on('missed-calls', (calls) => {
+      setChat(p => [...p, ...calls.map(c => ({ from: c.from, text: 'Missed call', ts: c.ts, missed: true }))]);
+    });
+    socket.on('msg-status', ({ id, status }) => {
+      setChat(p => p.map(m => m.id === id ? { ...m, status } : m));
+    });
 
     return () => {
       clearInterval(regInterval);
@@ -247,9 +255,10 @@ export function useWebRTC(myAddress: string | null) {
     } catch {}
   };
   const sendChat = (text: string) => {
-    if (!text.trim()) return;
-    socketRef.current?.emit('chat-message', { callId: callIdRef.current, from: myAddress, text: text.trim() });
-    setChat(p => [...p, { from: myAddress || '', text: text.trim() }]);
+    if (!text.trim() || !remoteAddress) return;
+    const msg = { from: myAddress, to: remoteAddress, text: text.trim(), ts: Date.now(), id: Date.now().toString(36), status: 'sent' };
+    socketRef.current?.emit('chat-message', msg);
+    setChat(p => [...p, msg]);
   };
 
   return { status, remoteAddress, localStream, remoteStream, muted, cameraOff, chat, callStart, connected,
