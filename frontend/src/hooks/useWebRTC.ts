@@ -90,6 +90,9 @@ export function useWebRTC(myAddress: string | null) {
     socket.on('reconnect', register);
     socket.on('registered', () => setConnected(true));
     const regInterval = setInterval(register, 2000);
+    const pingInterval = setInterval(() => {
+      fetch(`${SIGNALING}/health`).catch(() => {});
+    }, 30000);
     window.addEventListener('focus', register);
     document.addEventListener('visibilitychange', register);
     setTimeout(register, 300);
@@ -139,8 +142,8 @@ export function useWebRTC(myAddress: string | null) {
 
     return () => {
       clearInterval(regInterval);
+      clearInterval(pingInterval);
       window.removeEventListener('focus', register);
-      document.removeEventListener('visibilitychange', register);
       socket.disconnect();
     };
   }, [myAddress]);
@@ -165,7 +168,8 @@ export function useWebRTC(myAddress: string | null) {
     });
     pc.ontrack = (e) => {
       const s = e.streams?.[0] || new MediaStream([e.track]);
-      s.getAudioTracks().forEach(t => t.enabled = true);
+      s.getAudioTracks().forEach(t => { t.enabled = true; });
+      s.getVideoTracks().forEach(t => { t.enabled = true; });
       setRemoteStream(s);
     };
     pc.onicecandidate = (e) => {
