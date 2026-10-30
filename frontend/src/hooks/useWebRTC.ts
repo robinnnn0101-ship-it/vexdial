@@ -71,6 +71,7 @@ export function useWebRTC(myAddress: string | null) {
         socket.emit('register', { address: myAddress.trim(), status: 'online' });
       }
     };
+    socket.on('registered', () => setConnected(true));
     socket.on('connect', () => { setConnected(true); register(); });
     socket.on('disconnect', () => setConnected(false));
     socket.on('reconnect', register);
