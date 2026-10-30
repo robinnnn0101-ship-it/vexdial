@@ -60,9 +60,10 @@ export function useWebRTC(myAddress: string | null) {
     const socket = io(SIGNALING, {
       transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 20,
-      reconnectionDelay: 500,
-      timeout: 20000,
+      reconnectionAttempts: 30,
+      reconnectionDelay: 300,
+      timeout: 30000,
+      forceNew: true,
     });
     socketRef.current = socket;
 
