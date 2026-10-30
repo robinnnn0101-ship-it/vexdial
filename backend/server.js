@@ -14,6 +14,7 @@ const rooms = new Map();
 
 function getRoomId(a, b) { return [a, b].sort().join('_'); }
 
+app.get('/', (req, res) => res.json({ ok: true }));
 app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size }));
 
 app.get('/api/online/:address', (req, res) => {
@@ -28,7 +29,6 @@ io.on('connection', (socket) => {
     presence.set(address, { socketId: socket.id, status, lastSeen: Date.now() });
     socket.data.address = address;
     socket.join(address);
-    io.emit('presence-update', Object.fromEntries(presence));
   });
 
   socket.on('call-offer', ({ to, from, offer, callId }) => {
@@ -75,12 +75,11 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const addr = socket.data.address;
-    if (addr) {
-      presence.delete(addr);
-      io.emit('presence-update', Object.fromEntries(presence));
-    }
+    if (addr) presence.delete(addr);
   });
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, '0.0.0.0', () => console.log(`Signaling on ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Signaling server listening on 0.0.0.0:${PORT}`);
+});
