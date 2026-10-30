@@ -56,7 +56,7 @@ export default function Home() {
   }, [webrtc.status, webrtc.callStart]);
 
   const logCall = (addr: string, type: string, dur = 0) => {
-    const next = [{ address: addr, type, ts: Date.now(), duration: dur }, ...history].slice(0, 40);
+    const next = [{ address: addr, type, ts: Date.now(), duration: dur }, ...history].slice(0, 50);
     setHistory(next);
     localStorage.setItem('vexdial-history', JSON.stringify(next));
   };
@@ -70,7 +70,7 @@ export default function Home() {
     const addr = prompt('Wallet address');
     if (!addr) return;
     const name = prompt('Name') || '';
-    const next = [{ address: addr, name }, ...contacts.filter(c => c.address !== addr)];
+    const next = [{ address: addr.trim(), name }, ...contacts.filter(c => c.address !== addr.trim())];
     setContacts(next);
     localStorage.setItem('vexdial-contacts', JSON.stringify(next));
   };
@@ -106,10 +106,11 @@ export default function Home() {
   };
 
   if (!myAddress) return (
-    <div className="min-h-screen bg-[#0b0b10] text-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-2xl font-bold">V</div>
         <h1 className="text-5xl font-bold tracking-tight text-cyan-400">VexDial</h1>
-        <p className="mt-2 text-gray-400">Encrypted wallet-to-wallet calls</p>
+        <p className="mt-2 text-gray-400">Your wallet is your phone number</p>
         <div className="mt-10 space-y-3">
           <WalletMultiButton className="!w-full !justify-center !py-3 !rounded-xl" />
           <button onClick={makeVexWallet} className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium transition">Create Vex Wallet</button>
@@ -122,10 +123,10 @@ export default function Home() {
   );
 
   if (webrtc.status === 'ringing') return (
-    <div className="min-h-screen bg-[#0b0b10] text-white flex items-center justify-center">
-      <div className="bg-[#16161d] border border-white/10 rounded-2xl p-10 text-center max-w-sm w-full">
-        <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/20 flex items-center justify-center mb-4">
-          <span className="text-2xl">📞</span>
+    <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center">
+      <div className="bg-[#0f1218] border border-white/10 rounded-2xl p-10 text-center max-w-sm w-full">
+        <div className="w-20 h-20 mx-auto rounded-full bg-cyan-500/20 flex items-center justify-center mb-4 animate-pulse">
+          <span className="text-3xl">📞</span>
         </div>
         <h2 className="text-2xl font-semibold">Incoming Call</h2>
         <p className="text-gray-400 text-sm mt-2 break-all">{webrtc.remoteAddress}</p>
@@ -138,7 +139,7 @@ export default function Home() {
   );
 
   if (webrtc.status === 'calling' || webrtc.status === 'connected') return (
-    <div className="min-h-screen bg-[#0b0b10] text-white flex flex-col">
+    <div className="min-h-screen bg-[#05070a] text-white flex flex-col">
       <header className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div>
           <span className="text-cyan-400 font-semibold">VexDial</span>
@@ -180,8 +181,13 @@ export default function Home() {
           <button onClick={() => { if (webrtc.callStart) logCall(webrtc.remoteAddress || target, webrtc.status === 'calling' ? 'outgoing' : 'incoming', Math.floor((Date.now() - webrtc.callStart) / 1000)); webrtc.hangup(); }} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-full text-sm font-medium">End</button>
         </div>
         <div className="max-w-xl mx-auto">
-          <div className="bg-white/5 rounded-xl p-3 h-24 overflow-y-auto text-sm mb-2">
-            {webrtc.chat.map((m,i) => <div key={i} className={m.missed ? 'text-red-400' : ''}><span className="text-cyan-400">{m.from?.slice(0,6)}</span> {m.text}{m.status ? ` · ${m.status}` : ''}</div>)}
+          <div className="bg-white/5 rounded-xl p-3 h-28 overflow-y-auto text-sm mb-2">
+            {webrtc.chat.map((m,i) => (
+              <div key={i} className={m.missed ? 'text-red-400' : ''}>
+                <span className="text-cyan-400">{m.from?.slice(0,6)}</span> {m.text}
+                {m.status ? <span className="text-gray-500 text-xs ml-1">· {m.status}</span> : null}
+              </div>
+            ))}
           </div>
           <form onSubmit={e => { e.preventDefault(); webrtc.sendChat(chatInput); setChatInput(''); }} className="flex gap-2">
             <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm" placeholder="Message" />
@@ -193,15 +199,16 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0b0b10] text-white">
+    <div className="min-h-screen bg-[#05070a] text-white">
       <div className="max-w-lg mx-auto p-6">
         <header className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold">V</div>
             <div>
               <h1 className="text-2xl font-bold text-cyan-400">VexDial</h1>
               <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
             </div>
-            <div className={`w-3 h-3 rounded-full ${webrtc.connected ? 'bg-emerald-500' : 'bg-red-500'}`} title={webrtc.connected ? 'Online' : 'Offline'} />
+            <div className={`w-3 h-3 rounded-full ${webrtc.connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
             <span className="text-xs text-gray-500">{webrtc.connected ? 'online' : 'offline'}</span>
           </div>
           <div className="flex items-center gap-2">
