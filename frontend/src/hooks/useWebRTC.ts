@@ -137,12 +137,20 @@ export function useWebRTC(myAddress: string | null) {
       cleanup();
     });
     socket.on('call-ended', () => { stopRing(); cleanup(); });
-    socket.on('chat-message', (msg) => setChat(p => [...p, msg]));
+    socket.on('chat-message', (msg) => {
+      setChat(p => [...p, msg]);
+      if (msg.from !== myAddress) {
+        socket.emit('msg-read', { to: msg.from, id: msg.id });
+      }
+    });
     socket.on('offline-messages', (msgs) => {
       setChat(p => [...p, ...msgs.map(m => ({ ...m, status: 'delivered' }))]);
     });
     socket.on('missed-calls', (calls) => {
       setChat(p => [...p, ...calls.map(c => ({ from: c.from, text: 'Missed call', ts: c.ts, missed: true }))]);
+      const hist = JSON.parse(localStorage.getItem('vexdial-history') || '[]');
+      const next = [...calls.map(c => ({ address: c.from, type: 'missed', ts: c.ts, duration: 0 })), ...hist].slice(0, 40);
+      localStorage.setItem('vexdial-history', JSON.stringify(next));
     });
     socket.on('msg-status', ({ id, status }) => {
       setChat(p => p.map(m => m.id === id ? { ...m, status } : m));
