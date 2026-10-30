@@ -34,7 +34,7 @@ io.on('connection', (socket) => {
   socket.on('call-offer', ({ to, from, offer, callId }) => {
     const target = presence.get(to);
     if (!target) {
-      socket.emit('call-error', { error: 'User offline' });
+      socket.emit('call-error', { error: 'User offline. Ask them to refresh and stay on the page.' });
       return;
     }
     const roomId = callId || getRoomId(from, to);
