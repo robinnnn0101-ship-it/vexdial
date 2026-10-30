@@ -194,9 +194,12 @@ export default function Home() {
     <div className="min-h-screen bg-[#0b0b10] text-white">
       <div className="max-w-lg mx-auto p-6">
         <header className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-cyan-400">VexDial</h1>
-            <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-cyan-400">VexDial</h1>
+              <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
+            </div>
+            <div className={`w-3 h-3 rounded-full ${webrtc.connected ? 'bg-emerald-500' : 'bg-red-500'}`} title={webrtc.connected ? 'Online' : 'Offline'} />
           </div>
           <div className="flex items-center gap-2">
             {connected ? <WalletMultiButton /> : <button onClick={clearIdentity} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Logout</button>}
