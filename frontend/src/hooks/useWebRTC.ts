@@ -57,10 +57,11 @@ export function useWebRTC(myAddress: string | null) {
   useEffect(() => {
     if (!myAddress) return;
     const socket = io(SIGNALING, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 15,
-      reconnectionDelay: 800,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 500,
+      timeout: 20000,
     });
     socketRef.current = socket;
 
@@ -150,7 +151,13 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const startCall = async (target: string, _t?: string, withVideo = false) => {
-    if (!socketRef.current?.connected || !myAddress) return alert('Not connected. Click Reconnect.');
+    if (!socketRef.current) return alert('Socket not ready');
+    if (!socketRef.current.connected) {
+      socketRef.current.connect();
+      await new Promise(r => setTimeout(r, 1500));
+      if (!socketRef.current.connected) return alert('Cannot reach server. Try Reconnect.');
+    }
+    if (!myAddress) return alert('No identity');
     setRemoteAddress(target);
     remoteAddrRef.current = target;
     setStatus('calling');
