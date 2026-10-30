@@ -38,7 +38,9 @@ export default function Home() {
       audioRef.current.muted = false;
       audioRef.current.volume = 1;
       audioRef.current.play().catch(() => {
-        document.addEventListener('click', () => audioRef.current?.play(), { once: true });
+        const resume = () => { audioRef.current?.play().catch(() => {}); };
+        document.addEventListener('click', resume, { once: true });
+        document.addEventListener('touchstart', resume, { once: true });
       });
     }
     if (webrtc.remoteStream && remoteRef.current) {
