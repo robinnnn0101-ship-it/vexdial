@@ -67,7 +67,7 @@ export function useWebRTC(myAddress: string | null) {
     socketRef.current = socket;
 
     const register = () => {
-      socket.emit('register', { address: myAddress, status: 'online' });
+      socket.emit('register', { address: myAddress.trim(), status: 'online' });
     };
     socket.on('connect', () => { setConnected(true); register(); });
     socket.on('disconnect', () => setConnected(false));
@@ -160,8 +160,8 @@ export function useWebRTC(myAddress: string | null) {
       if (!socketRef.current.connected) return alert('Cannot reach server. Try Reconnect.');
     }
     if (!myAddress) return alert('No identity');
-    setRemoteAddress(target);
-    remoteAddrRef.current = target;
+    setRemoteAddress(target.trim());
+    remoteAddrRef.current = target.trim();
     setStatus('calling');
     stopRing();
     ringInterval.current = setInterval(() => playTone(440, 0.15), 2000);
@@ -171,10 +171,10 @@ export function useWebRTC(myAddress: string | null) {
       const pc = await makePC(stream);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      const cid = [myAddress, target].sort().join('_');
+      const cid = [myAddress.trim(), target.trim()].sort().join('_');
       callIdRef.current = cid;
-      socketRef.current.emit('register', { address: myAddress, status: 'online' });
-      socketRef.current.emit('call-offer', { to: target, from: myAddress, offer, callId: cid });
+      socketRef.current.emit('register', { address: myAddress.trim(), status: 'online' });
+      socketRef.current.emit('call-offer', { to: target.trim(), from: myAddress.trim(), offer, callId: cid });
       socketRef.current.emit('join-room', cid);
     } catch { stopRing(); cleanup(); }
   };
