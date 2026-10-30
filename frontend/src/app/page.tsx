@@ -151,7 +151,7 @@ export default function Home() {
       </header>
 
       <div className="flex-1 relative p-4">
-        <audio ref={audioRef} autoPlay playsInline />
+        <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
           <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto">
             <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
@@ -174,6 +174,7 @@ export default function Home() {
           ))}
         </div>
         <div className="flex justify-center gap-3 mb-4">
+          <button onClick={() => audioRef.current?.play().catch(() => {})} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">Speaker</button>
           <button onClick={webrtc.toggleMute} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
           <button onClick={webrtc.toggleCamera} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
           <button onClick={webrtc.startScreenShare} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">Share</button>
