@@ -153,7 +153,7 @@ export default function Home() {
       </header>
 
       <div className="flex-1 relative p-4">
-        <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
+        <audio ref={audioRef} autoPlay playsInline />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
           <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto">
             <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
@@ -233,7 +233,7 @@ export default function Home() {
         </div>
 
         <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-6">
-          {['dial','contacts','history'].map(t => (
+          {['dial','contacts','history','messages'].map(t => (
             <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-lg text-sm capitalize ${tab===t ? 'bg-cyan-600' : 'text-gray-400'}`}>{t === 'contacts' ? 'VexBook' : t}</button>
           ))}
         </div>
@@ -268,6 +268,25 @@ export default function Home() {
                 <button onClick={() => { setTarget(c.address); setTab('dial'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Call</button>
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === 'messages' && (
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+            <h2 className="font-medium mb-4">Messages</h2>
+            <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address to message" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
+            <div className="bg-white/5 rounded-xl p-3 h-40 overflow-y-auto text-sm mb-2">
+              {webrtc.chat.filter(m => m.to === target || m.from === target).map((m,i) => (
+                <div key={i} className={m.from === myAddress ? 'text-right' : ''}>
+                  <span className="text-cyan-400">{m.from?.slice(0,6)}</span> {m.text}
+                  {m.status ? <span className="text-gray-500 text-xs ml-1">· {m.status}</span> : null}
+                </div>
+              ))}
+            </div>
+            <form onSubmit={e => { e.preventDefault(); if (target.trim()) { webrtc.sendChat(chatInput, target.trim()); setChatInput(''); } }} className="flex gap-2">
+              <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm" placeholder="Message" />
+              <button className="px-4 py-2 bg-cyan-600 rounded-xl text-sm">Send</button>
+            </form>
           </div>
         )}
 
