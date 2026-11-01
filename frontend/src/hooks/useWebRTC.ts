@@ -59,10 +59,11 @@ export function useWebRTC(myAddress: string | null) {
     const socket = io(SIGNALING, {
       transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 30,
-      reconnectionDelay: 300,
-      timeout: 30000,
-      forceNew: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      forceNew: false,
     });
     socketRef.current = socket;
 
@@ -88,10 +89,10 @@ export function useWebRTC(myAddress: string | null) {
     socket.on('disconnect', () => setConnected(false));
     socket.on('reconnect', register);
     socket.on('registered', () => setConnected(true));
-    const regInterval = setInterval(register, 2000);
+    const regInterval = setInterval(register, 5000);
     const pingInterval = setInterval(() => {
       fetch(`${SIGNALING}/health`).catch(() => {});
-    }, 30000);
+    }, 15000);
     window.addEventListener('focus', register);
     document.addEventListener('visibilitychange', register);
     setTimeout(register, 300);
