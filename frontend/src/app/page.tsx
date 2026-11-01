@@ -233,7 +233,7 @@ export default function Home() {
         </div>
 
         <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-6">
-          {['dial','contacts','history','messages'].map(t => (
+          {['dial','contacts','history','messages','names'].map(t => (
             <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-lg text-sm capitalize ${tab===t ? 'bg-cyan-600' : 'text-gray-400'}`}>{t === 'contacts' ? 'VexBook' : t}</button>
           ))}
         </div>
@@ -287,6 +287,28 @@ export default function Home() {
               <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm" placeholder="Message" />
               <button className="px-4 py-2 bg-cyan-600 rounded-xl text-sm">Send</button>
             </form>
+          </div>
+        )}
+
+        {tab === 'names' && (
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+            <h2 className="font-medium mb-4">.vex Names</h2>
+            <form onSubmit={async e => {
+              e.preventDefault();
+              const name = prompt('Name (e.g. robin.vex)');
+              if (!name || !myAddress) return;
+              const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
+              const r = await fetch(`${base}/api/names`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, address: myAddress }),
+              });
+              const data = await r.json();
+              alert(data.ok ? 'Registered' : data.error);
+            }} className="mb-4">
+              <button className="w-full py-3 bg-cyan-600 rounded-xl font-medium text-sm">Register Name</button>
+            </form>
+            <p className="text-xs text-gray-500">Names end with .vex and point to your address</p>
           </div>
         )}
 
