@@ -33,17 +33,19 @@ export default function Home() {
   }, [webrtc.localStream]);
 
   useEffect(() => {
-    if (webrtc.remoteStream && audioRef.current) {
-      audioRef.current.srcObject = webrtc.remoteStream;
-      audioRef.current.muted = false;
-      audioRef.current.volume = 1;
-      audioRef.current.play().catch(() => {
-        const resume = () => { audioRef.current?.play().catch(() => {}); };
+    if (!webrtc.remoteStream) return;
+    const el = audioRef.current;
+    if (el) {
+      el.srcObject = webrtc.remoteStream;
+      el.muted = false;
+      el.volume = 1;
+      el.play().catch(() => {
+        const resume = () => el.play().catch(() => {});
         document.addEventListener('click', resume, { once: true });
         document.addEventListener('touchstart', resume, { once: true });
       });
     }
-    if (webrtc.remoteStream && remoteRef.current) {
+    if (remoteRef.current) {
       remoteRef.current.srcObject = webrtc.remoteStream;
       remoteRef.current.play().catch(() => {});
     }
