@@ -13,6 +13,7 @@ const presence = new Map();
 const offlineMessages = new Map();
 const missedCalls = new Map();
 const names = new Map();
+const ADMIN = process.env.ADMIN_ADDRESS || '';
 
 function getRoomId(a, b) { return [a, b].sort().join('_'); }
 
@@ -52,6 +53,8 @@ app.post('/api/names', (req, res) => {
 });
 
 app.delete('/api/names/:name', (req, res) => {
+  const admin = String(req.headers['x-admin'] || '');
+  if (ADMIN && admin !== ADMIN) return res.json({ ok: false, error: 'admin only' });
   const name = decodeURIComponent(req.params.name).toLowerCase().trim();
   names.delete(name);
   res.json({ ok: true });
