@@ -131,8 +131,12 @@ io.on('connection', (socket) => {
 });
 
 setInterval(() => {
+  const now = Date.now();
+  for (const [addr, p] of presence) {
+    if (now - p.lastSeen > 60000) presence.delete(addr);
+  }
   console.log(`keepalive online=${presence.size}`);
-}, 60000);
+}, 30000);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
