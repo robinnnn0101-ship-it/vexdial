@@ -14,6 +14,7 @@ const offlineMessages = new Map();
 const missedCalls = new Map();
 const names = new Map();
 const ADMIN = process.env.ADMIN_ADDRESS || '';
+const PREMIUM = new Set(['elon.vex','trump.vex','binance.vex','solana.vex','vexlore.vex','vexdial.vex']);
 
 function getRoomId(a, b) { return [a, b].sort().join('_'); }
 
@@ -45,9 +46,11 @@ app.get('/api/names/:name', (req, res) => {
 app.post('/api/names', (req, res) => {
   const name = String(req.body?.name || '').toLowerCase().trim();
   const address = String(req.body?.address || '').trim();
+  const admin = String(req.headers['x-admin'] || '');
   if (!name || !address) return res.json({ ok: false, error: 'name and address required' });
   if (!name.endsWith('.vex')) return res.json({ ok: false, error: 'must end with .vex' });
   if (names.has(name)) return res.json({ ok: false, error: 'name taken' });
+  if (PREMIUM.has(name) && admin !== ADMIN) return res.json({ ok: false, error: 'premium name' });
   names.set(name, { address, registered: Date.now() });
   res.json({ ok: true, name, address });
 });
