@@ -63,9 +63,22 @@ export default function Home() {
     localStorage.setItem('vexdial-history', JSON.stringify(next));
   };
 
-  const call = (video: boolean) => {
-    if (!target.trim()) return alert('Enter address');
-    webrtc.startCall(target.trim(), undefined, video);
+  const resolve = async (input: string) => {
+    const t = input.trim();
+    if (!t.endsWith('.vex')) return t;
+    try {
+      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
+      const r = await fetch(`${base}/api/names/${encodeURIComponent(t.toLowerCase())}`);
+      const data = await r.json();
+      return data.address || t;
+    } catch { return t; }
+  };
+
+  const call = async (video: boolean) => {
+    if (!target.trim()) return alert('Enter address or name');
+    const addr = await resolve(target);
+    if (addr === target.trim() && target.endsWith('.vex')) return alert('Name not found');
+    webrtc.startCall(addr, undefined, video);
   };
 
   const addContact = () => {
@@ -240,7 +253,7 @@ export default function Home() {
 
         {tab === 'dial' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-            <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Wallet address" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
+            <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Address or name.vex" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
             <div className="flex items-center gap-3 mb-4">
               <button onClick={checkOnline} className="px-3 py-1.5 text-xs bg-white/10 rounded-lg">Check</button>
               {onlineStatus !== 'unknown' && <span className={`text-xs ${onlineStatus==='online'?'text-emerald-400':'text-red-400'}`}>{onlineStatus}</span>}
@@ -274,7 +287,7 @@ export default function Home() {
         {tab === 'messages' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
             <h2 className="font-medium mb-4">Messages</h2>
-            <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address to message" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
+            <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
             <div className="bg-white/5 rounded-xl p-3 h-40 overflow-y-auto text-sm mb-2">
               {webrtc.chat.filter(m => m.to === target || m.from === target).map((m,i) => (
                 <div key={i} className={m.from === myAddress ? 'text-right' : ''}>
@@ -283,7 +296,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <form onSubmit={e => { e.preventDefault(); if (target.trim()) { webrtc.sendChat(chatInput, target.trim()); setChatInput(''); } }} className="flex gap-2">
+            <form onSubmit={async e => { e.preventDefault(); if (target.trim()) { const addr = await resolve(target); webrtc.sendChat(chatInput, addr); setChatInput(''); } }} className="flex gap-2">
               <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm" placeholder="Message" />
               <button className="px-4 py-2 bg-cyan-600 rounded-xl text-sm">Send</button>
             </form>
