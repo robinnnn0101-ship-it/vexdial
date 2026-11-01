@@ -25,7 +25,7 @@ export function useWebRTC(myAddress: string | null) {
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [callStart, setCallStart] = useState<number|null>(null);
-  const [chat, setChat] = useState<{from:string,text:string,ts?:number,id?:string,status?:string,missed?:boolean}[]>([]);
+  const [chat, setChat] = useState<{from:string,text:string,ts?:number,id?:string,status?:string,missed?:boolean,to?:string}[]>([]);
   const [connected, setConnected] = useState(false);
 
   const socketRef = useRef<Socket|null>(null);
@@ -190,10 +190,12 @@ export function useWebRTC(myAddress: string | null) {
     });
     pc.ontrack = (e) => {
       const track = e.track;
+      if (!track) return;
       track.enabled = true;
-      const s = e.streams?.[0] || new MediaStream([track]);
-      s.getTracks().forEach(t => { t.enabled = true; });
-      setRemoteStream(s);
+      let stream = e.streams?.[0];
+      if (!stream) stream = new MediaStream([track]);
+      stream.getTracks().forEach(t => { t.enabled = true; });
+      setRemoteStream(stream);
     };
     pc.onicecandidate = (e) => {
       if (e.candidate && socketRef.current && remoteAddrRef.current) {
@@ -265,9 +267,11 @@ export function useWebRTC(myAddress: string | null) {
       if (sender) await sender.replaceTrack(screen.getVideoTracks()[0]);
     } catch {}
   };
-  const sendChat = (text: string) => {
-    if (!text.trim() || !remoteAddress) return;
-    const msg = { from: myAddress, to: remoteAddress, text: text.trim(), ts: Date.now(), id: Date.now().toString(36), status: 'sent' };
+  const sendChat = (text: string, to?: string) => {
+    if (!text.trim()) return;
+    const dest = to || remoteAddress;
+    if (!dest) return alert('Enter address first');
+    const msg = { from: myAddress, to: dest, text: text.trim(), ts: Date.now(), id: Date.now().toString(36), status: 'sent' };
     socketRef.current?.emit('chat-message', msg);
     setChat(p => [...p, msg]);
   };
