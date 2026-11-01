@@ -12,6 +12,7 @@ const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } 
 const presence = new Map();
 const offlineMessages = new Map();
 const missedCalls = new Map();
+const names = new Map();
 
 function getRoomId(a, b) { return [a, b].sort().join('_'); }
 
@@ -27,6 +28,33 @@ app.get('/api/online/:address', (req, res) => {
   const addr = decodeURIComponent(req.params.address).trim();
   const p = presence.get(addr);
   res.json({ online: !!p, status: p?.status || 'offline' });
+});
+
+app.get('/api/names', (req, res) => {
+  const list = Array.from(names.entries()).map(([name, data]) => ({ name, ...data }));
+  res.json({ count: list.length, names: list });
+});
+
+app.get('/api/names/:name', (req, res) => {
+  const name = decodeURIComponent(req.params.name).toLowerCase().trim();
+  const data = names.get(name);
+  res.json(data || { error: 'not found' });
+});
+
+app.post('/api/names', (req, res) => {
+  const name = String(req.body?.name || '').toLowerCase().trim();
+  const address = String(req.body?.address || '').trim();
+  if (!name || !address) return res.json({ ok: false, error: 'name and address required' });
+  if (!name.endsWith('.vex')) return res.json({ ok: false, error: 'must end with .vex' });
+  if (names.has(name)) return res.json({ ok: false, error: 'name taken' });
+  names.set(name, { address, registered: Date.now() });
+  res.json({ ok: true, name, address });
+});
+
+app.delete('/api/names/:name', (req, res) => {
+  const name = decodeURIComponent(req.params.name).toLowerCase().trim();
+  names.delete(name);
+  res.json({ ok: true });
 });
 
 app.post('/api/register', (req, res) => {
