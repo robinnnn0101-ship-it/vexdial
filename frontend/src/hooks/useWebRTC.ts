@@ -180,6 +180,7 @@ export function useWebRTC(myAddress: string | null) {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
       ]
     });
     pcRef.current = pc;
@@ -188,9 +189,10 @@ export function useWebRTC(myAddress: string | null) {
       pc.addTrack(t, stream);
     });
     pc.ontrack = (e) => {
-      const s = e.streams?.[0] || new MediaStream([e.track]);
-      s.getAudioTracks().forEach(t => { t.enabled = true; });
-      s.getVideoTracks().forEach(t => { t.enabled = true; });
+      const track = e.track;
+      track.enabled = true;
+      const s = e.streams?.[0] || new MediaStream([track]);
+      s.getTracks().forEach(t => { t.enabled = true; });
       setRemoteStream(s);
     };
     pc.onicecandidate = (e) => {
