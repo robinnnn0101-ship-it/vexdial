@@ -4,45 +4,53 @@ import { io, Socket } from 'socket.io-client';
 
 const SIGNALING = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
 
-function playTone(freq = 440, dur = 0.3) {
+function playTone(freq = 440, dur = 0.25) {
   try {
-    const ctx = new AudioContext();
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.connect(g); g.connect(ctx.destination);
     o.frequency.value = freq;
-    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.setValueAtTime(0.25, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + dur);
-    o.start(); o.stop(ctx.currentTime + dur);
+    o.start();
+    o.stop(ctx.currentTime + dur);
   } catch {}
 }
 
 export function useWebRTC(myAddress: string | null) {
-  const [status, setStatus] = useState<'idle'|'calling'|'ringing'|'connected'>('idle');
-  const [remoteAddress, setRemoteAddress] = useState<string|null>(null);
-  const [localStream, setLocalStream] = useState<MediaStream|null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream|null>(null);
+  const [status, setStatus] = useState<'idle' | 'calling' | 'ringing' | 'connected'>('idle');
+  const [remoteAddress, setRemoteAddress] = useState<string | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
-  const [callStart, setCallStart] = useState<number|null>(null);
-  const [chat, setChat] = useState<{from:string,text:string,ts?:number,id?:string,status?:string,missed?:boolean,to?:string}[]>([]);
+  const [callStart, setCallStart] = useState<number | null>(null);
+  const [chat, setChat] = useState<any[]>([]);
   const [connected, setConnected] = useState(false);
 
-  const socketRef = useRef<Socket|null>(null);
-  const pcRef = useRef<RTCPeerConnection|null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
   const pendingOffer = useRef<any>(null);
-  const pendingCands = useRef<any[]>([]);
+  const pendingCands = useRef<RTCIceCandidateInit[]>([]);
   const callIdRef = useRef('');
   const ringInterval = useRef<any>(null);
-  const remoteAddrRef = useRef<string|null>(null);
+  const remoteAddrRef = useRef<string | null>(null);
 
-  const stopRing = () => { if (ringInterval.current) clearInterval(ringInterval.current); ringInterval.current = null; };
+  const stopRing = () => {
+    if (ringInterval.current) clearInterval(ringInterval.current);
+    ringInterval.current = null;
+  };
 
   const cleanup = () => {
     stopRing();
-    pcRef.current?.close();
-    pcRef.current = null;
-    localStream?.getTracks().forEach(t => t.stop());
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop());
+    }
     setLocalStream(null);
     setRemoteStream(null);
     setStatus('idle');
@@ -52,52 +60,47 @@ export function useWebRTC(myAddress: string | null) {
     pendingCands.current = [];
   };
 
-  useEffect(() => { remoteAddrRef.current = remoteAddress; }, [remoteAddress]);
+  useEffect(() => {
+    remoteAddrRef.current = remoteAddress;
+  }, [remoteAddress]);
 
   useEffect(() => {
     if (!myAddress) return;
+
     const socket = io(SIGNALING, {
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
-      reconnectionDelay: 500,
-      reconnectionDelayMax: 5000,
+      reconnectionDelay: 800,
       timeout: 20000,
-      forceNew: false,
     });
     socketRef.current = socket;
 
     const register = async () => {
-      if (!myAddress) return;
+      if (!myAddress || !socket.connected) return;
       const addr = myAddress.trim();
-      if (socket.connected) {
-        socket.emit('register', { address: addr, status: 'online' });
-      }
+      socket.emit('register', { address: addr, status: 'online' });
       try {
         await fetch(`${SIGNALING}/api/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address: addr }),
-          mode: 'cors',
         });
         setConnected(true);
-      } catch (e) {
-        console.log('register failed', e);
-      }
+      } catch {}
     };
-    socket.on('connect', () => { setConnected(true); register(); });
+
+    socket.on('connect', () => {
+      setConnected(true);
+      register();
+    });
     socket.on('disconnect', () => setConnected(false));
     socket.on('reconnect', register);
     socket.on('registered', () => setConnected(true));
-    const regInterval = setInterval(register, 5000);
-    const pingInterval = setInterval(() => {
-      fetch(`${SIGNALING}/health`).catch(() => {});
-    }, 15000);
+
+    const regInterval = setInterval(register, 4000);
     window.addEventListener('focus', register);
     document.addEventListener('visibilitychange', register);
-    setTimeout(register, 300);
-    setTimeout(register, 1000);
-    setTimeout(register, 2500);
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
@@ -105,21 +108,22 @@ export function useWebRTC(myAddress: string | null) {
       pendingOffer.current = offer;
       setStatus('ringing');
       stopRing();
-      ringInterval.current = setInterval(() => playTone(880, 0.2), 1500);
+      ringInterval.current = setInterval(() => playTone(880, 0.18), 1400);
     });
 
     socket.on('call-answered', async ({ answer }) => {
       stopRing();
-      if (pcRef.current && answer) {
-        try {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-          setStatus('connected');
-          setCallStart(Date.now());
-          for (const c of pendingCands.current) {
-            try { await pcRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-          }
-          pendingCands.current = [];
-        } catch (e) { console.error(e); }
+      if (!pcRef.current || !answer) return;
+      try {
+        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        setStatus('connected');
+        setCallStart(Date.now());
+        for (const c of pendingCands.current) {
+          try { await pcRef.current!.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+        }
+        pendingCands.current = [];
+      } catch (e) {
+        console.error('setRemoteDescription failed', e);
       }
     });
 
@@ -137,7 +141,11 @@ export function useWebRTC(myAddress: string | null) {
       stopRing();
       cleanup();
     });
-    socket.on('call-ended', () => { stopRing(); cleanup(); });
+    socket.on('call-ended', () => {
+      stopRing();
+      cleanup();
+    });
+
     socket.on('chat-message', (msg) => {
       setChat(p => [...p, msg]);
       if (msg.from !== myAddress) {
@@ -145,13 +153,10 @@ export function useWebRTC(myAddress: string | null) {
       }
     });
     socket.on('offline-messages', (msgs) => {
-      setChat(p => [...p, ...msgs.map(m => ({ ...m, status: 'delivered' }))]);
+      setChat(p => [...p, ...msgs.map((m: any) => ({ ...m, status: 'delivered' }))]);
     });
     socket.on('missed-calls', (calls) => {
-      setChat(p => [...p, ...calls.map(c => ({ from: c.from, text: 'Missed call', ts: c.ts, missed: true }))]);
-      const hist = JSON.parse(localStorage.getItem('vexdial-history') || '[]');
-      const next = [...calls.map(c => ({ address: c.from, type: 'missed', ts: c.ts, duration: 0 })), ...hist].slice(0, 40);
-      localStorage.setItem('vexdial-history', JSON.stringify(next));
+      setChat(p => [...p, ...calls.map((c: any) => ({ from: c.from, text: 'Missed call', ts: c.ts, missed: true }))]);
     });
     socket.on('msg-status', ({ id, status }) => {
       setChat(p => p.map(m => m.id === id ? { ...m, status } : m));
@@ -159,126 +164,226 @@ export function useWebRTC(myAddress: string | null) {
 
     return () => {
       clearInterval(regInterval);
-      clearInterval(pingInterval);
       window.removeEventListener('focus', register);
+      document.removeEventListener('visibilitychange', register);
       socket.disconnect();
     };
   }, [myAddress]);
 
   const getStream = async (video: boolean) => {
     const constraints: MediaStreamConstraints = {
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     };
-    if (video) constraints.video = { width: 640, height: 480 };
+    if (video) {
+      constraints.video = { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' };
+    }
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     stream.getAudioTracks().forEach(t => { t.enabled = true; });
+    if (video) stream.getVideoTracks().forEach(t => { t.enabled = true; });
     return stream;
   };
 
-  const makePC = async (stream: MediaStream) => {
+  const makePC = (stream: MediaStream) => {
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-      ]
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+      ],
     });
     pcRef.current = pc;
-    stream.getTracks().forEach(t => {
-      t.enabled = true;
-      pc.addTrack(t, stream);
+
+    stream.getTracks().forEach(track => {
+      track.enabled = true;
+      pc.addTrack(track, stream);
     });
-    pc.ontrack = (e) => {
-      const track = e.track;
+
+    pc.ontrack = (event) => {
+      const track = event.track;
       if (!track) return;
       track.enabled = true;
-      let stream = e.streams?.[0];
-      if (!stream) stream = new MediaStream([track]);
-      stream.getTracks().forEach(t => { t.enabled = true; });
-      setRemoteStream(stream);
+
+      let remote = event.streams?.[0];
+      if (!remote) {
+        remote = new MediaStream([track]);
+      }
+      remote.getTracks().forEach(t => { t.enabled = true; });
+
+      setRemoteStream(remote);
+
       setTimeout(() => {
-        stream.getAudioTracks().forEach(t => { t.enabled = true; });
-      }, 100);
+        remote.getAudioTracks().forEach(t => { t.enabled = true; });
+        remote.getVideoTracks().forEach(t => { t.enabled = true; });
+      }, 200);
     };
+
     pc.onicecandidate = (e) => {
       if (e.candidate && socketRef.current && remoteAddrRef.current) {
-        socketRef.current.emit('ice-candidate', { to: remoteAddrRef.current, candidate: e.candidate, callId: callIdRef.current });
+        socketRef.current.emit('ice-candidate', {
+          to: remoteAddrRef.current,
+          candidate: e.candidate,
+          callId: callIdRef.current,
+        });
       }
     };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        console.warn('PC state:', pc.connectionState);
+      }
+    };
+
     return pc;
   };
 
-  const startCall = async (target: string, _t?: string, withVideo = false) => {
-    if (!socketRef.current) return alert('Socket not ready');
+  const startCall = async (target: string, withVideo = false) => {
+    if (!socketRef.current) return alert('Not connected to server');
     if (!socketRef.current.connected) {
       socketRef.current.connect();
-      await new Promise(r => setTimeout(r, 1500));
-      if (!socketRef.current.connected) return alert('Cannot reach server. Try Reconnect.');
+      await new Promise(r => setTimeout(r, 1200));
+      if (!socketRef.current.connected) return alert('Cannot reach signaling server');
     }
     if (!myAddress) return alert('No identity');
-    setRemoteAddress(target.trim());
-    remoteAddrRef.current = target.trim();
+
+    const cleanTarget = target.trim();
+    setRemoteAddress(cleanTarget);
+    remoteAddrRef.current = cleanTarget;
     setStatus('calling');
     stopRing();
-    ringInterval.current = setInterval(() => playTone(440, 0.15), 2000);
+    ringInterval.current = setInterval(() => playTone(440, 0.12), 1800);
+
     try {
       const stream = await getStream(withVideo);
       setLocalStream(stream);
-      const pc = await makePC(stream);
-      const offer = await pc.createOffer();
+      const pc = makePC(stream);
+
+      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: withVideo });
       await pc.setLocalDescription(offer);
-      const cid = [myAddress.trim(), target.trim()].sort().join('_');
+
+      const cid = [myAddress.trim(), cleanTarget].sort().join('_');
       callIdRef.current = cid;
-      socketRef.current.emit('register', { address: myAddress.trim(), status: 'online' });
-      setTimeout(() => socketRef.current?.emit('register', { address: myAddress.trim(), status: 'online' }), 200);
-      socketRef.current.emit('call-offer', { to: target.trim(), from: myAddress.trim(), offer, callId: cid });
+
+      socketRef.current.emit('call-offer', {
+        to: cleanTarget,
+        from: myAddress.trim(),
+        offer,
+        callId: cid,
+      });
       socketRef.current.emit('join-room', cid);
-    } catch { stopRing(); cleanup(); }
+    } catch (err) {
+      console.error(err);
+      stopRing();
+      cleanup();
+      alert('Failed to start call. Check mic/camera permission.');
+    }
   };
 
   const acceptCall = async () => {
     stopRing();
     if (!pendingOffer.current || !remoteAddress) return;
+
     try {
       const isVideo = String(pendingOffer.current.sdp || '').includes('m=video');
       const stream = await getStream(isVideo);
       setLocalStream(stream);
-      const pc = await makePC(stream);
+      const pc = makePC(stream);
+
       await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socketRef.current?.emit('call-answer', { to: remoteAddress, from: myAddress, answer, callId: callIdRef.current });
+
+      socketRef.current?.emit('call-answer', {
+        to: remoteAddress,
+        from: myAddress,
+        answer,
+        callId: callIdRef.current,
+      });
       socketRef.current?.emit('join-room', callIdRef.current);
+
       for (const c of pendingCands.current) {
         try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
       }
       pendingCands.current = [];
+
       setStatus('connected');
       setCallStart(Date.now());
       pendingOffer.current = null;
-    } catch { cleanup(); }
+    } catch (err) {
+      console.error(err);
+      cleanup();
+      alert('Failed to accept call');
+    }
   };
 
-  const rejectCall = () => { socketRef.current?.emit('call-reject', { to: remoteAddress, from: myAddress, callId: callIdRef.current }); cleanup(); };
-  const hangup = () => { socketRef.current?.emit('call-hangup', { to: remoteAddress, from: myAddress, callId: callIdRef.current }); cleanup(); };
-  const toggleMute = () => { localStream?.getAudioTracks().forEach(t => t.enabled = muted); setMuted(!muted); };
-  const toggleCamera = () => { localStream?.getVideoTracks().forEach(t => t.enabled = cameraOff); setCameraOff(!cameraOff); };
+  const rejectCall = () => {
+    socketRef.current?.emit('call-reject', { to: remoteAddress, from: myAddress, callId: callIdRef.current });
+    cleanup();
+  };
+
+  const hangup = () => {
+    socketRef.current?.emit('call-hangup', { to: remoteAddress, from: myAddress, callId: callIdRef.current });
+    cleanup();
+  };
+
+  const toggleMute = () => {
+    localStream?.getAudioTracks().forEach(t => { t.enabled = muted; });
+    setMuted(!muted);
+  };
+
+  const toggleCamera = () => {
+    localStream?.getVideoTracks().forEach(t => { t.enabled = cameraOff; });
+    setCameraOff(!cameraOff);
+  };
+
   const startScreenShare = async () => {
     try {
-      const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
-      if (sender) await sender.replaceTrack(screen.getVideoTracks()[0]);
+      if (sender && screen.getVideoTracks()[0]) {
+        await sender.replaceTrack(screen.getVideoTracks()[0]);
+      }
     } catch {}
   };
+
   const sendChat = (text: string, to?: string) => {
     if (!text.trim()) return;
-    const dest = to || remoteAddress;
+    const dest = (to || remoteAddress || '').trim();
     if (!dest) return alert('Enter address first');
-    const msg = { from: myAddress, to: dest, text: text.trim(), ts: Date.now(), id: Date.now().toString(36), status: 'sent' };
+    const msg = {
+      from: myAddress,
+      to: dest,
+      text: text.trim(),
+      ts: Date.now(),
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      status: 'sent',
+    };
     socketRef.current?.emit('chat-message', msg);
     setChat(p => [...p, msg]);
   };
 
-  return { status, remoteAddress, localStream, remoteStream, muted, cameraOff, chat, callStart, connected,
-           startCall, acceptCall, rejectCall, hangup, toggleMute, toggleCamera, startScreenShare, sendChat };
+  return {
+    status,
+    remoteAddress,
+    localStream,
+    remoteStream,
+    muted,
+    cameraOff,
+    chat,
+    callStart,
+    connected,
+    startCall,
+    acceptCall,
+    rejectCall,
+    hangup,
+    toggleMute,
+    toggleCamera,
+    startScreenShare,
+    sendChat,
+  };
 }
