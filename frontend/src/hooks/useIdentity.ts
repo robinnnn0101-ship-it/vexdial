@@ -31,9 +31,23 @@ export function createLocalWallet(): { identity: VexIdentity; secret: string } {
   }
   const address = (addr.padStart(40, '1').slice(0, 40)) + 'vex';
   return {
-    identity: { address, chain: 'sol', label: 'Vex Wallet' },
+    identity: { address, chain: 'vex', label: 'Quantumproof Vex Wallet' },
     secret,
   };
+}
+
+export function restoreFromSecret(secret: string): VexIdentity | null {
+  const clean = secret.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(clean)) return null;
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  let num = BigInt('0x' + clean.slice(0, 56));
+  let addr = '';
+  while (num > 0n) {
+    addr = alphabet[Number(num % 58n)] + addr;
+    num = num / 58n;
+  }
+  const address = (addr.padStart(40, '1').slice(0, 40)) + 'vex';
+  return { address, chain: 'vex', label: 'Quantumproof Vex Wallet' };
 }
 
 export function useIdentity() {
