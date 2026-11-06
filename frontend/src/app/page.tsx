@@ -3,7 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useEffect, useRef, useState } from 'react';
 import { useWebRTC } from '../hooks/useWebRTC';
-import { useIdentity, createLocalWallet } from '../hooks/useIdentity';
+import { useIdentity, createLocalWallet, restoreFromSecret } from '../hooks/useIdentity';
 
 export default function Home() {
   const { publicKey, connected } = useWallet();
@@ -98,6 +98,14 @@ export default function Home() {
     setShowSecret(secret);
   };
 
+  const loginWithKey = () => {
+    const key = prompt('Paste your Vex private key (64 hex chars)');
+    if (!key) return;
+    const id = restoreFromSecret(key);
+    if (!id) return alert('Invalid private key');
+    saveIdentity(id);
+  };
+
   const checkOnline = async () => {
     if (!target.trim()) return;
     try {
@@ -135,12 +143,13 @@ export default function Home() {
           <p>1. Connect any wallet or create a Vex Wallet</p>
           <p>2. Enter an address or name.vex</p>
           <p>3. Call or message instantly</p>
-          <p className="text-xs text-gray-500 pt-1">Supports interchain calling. Your keys never leave your device.</p>
+          <p className="text-xs text-gray-500 pt-1">Supports interchain calling. Quantumproof Vex Wallet uses hybrid post-quantum design inspired by Vexlore Quantumproof Chain. Your keys never leave your device.</p>
         </div>
 
         <div className="mt-8 space-y-3">
           <WalletMultiButton className="!w-full !justify-center !py-3 !rounded-xl" />
-          <button onClick={makeVexWallet} className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium transition">Create Vex Wallet</button>
+          <button onClick={makeVexWallet} className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium transition">Create Quantumproof Vex Wallet</button>
+          <button onClick={loginWithKey} className="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-medium transition">Login with Vex Private Key</button>
           <button onClick={connectMetaMask} className="w-full py-3 bg-orange-600 hover:bg-orange-500 rounded-xl font-medium transition">Connect MetaMask</button>
         </div>
 
@@ -251,7 +260,7 @@ export default function Home() {
 
         {showSecret && (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 text-sm">
-            <p className="font-medium text-amber-300 mb-2">Save your secret</p>
+            <p className="font-medium text-amber-300 mb-2">Save your Quantumproof Vex private key</p>
             <p className="font-mono text-xs break-all text-amber-100/80">{showSecret}</p>
             <button onClick={() => setShowSecret(null)} className="mt-3 text-xs px-3 py-1 bg-amber-600 rounded-lg">Done</button>
           </div>
