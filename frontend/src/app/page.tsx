@@ -80,7 +80,7 @@ export default function Home() {
     if (!target.trim()) return alert('Enter address or name');
     const addr = await resolve(target);
     if (addr === target.trim() && target.endsWith('.vex')) return alert('Name not found');
-    webrtc.startCall(addr, video);
+    webrtc.startCall(addr, undefined, video);
   };
 
   const addContact = () => {
@@ -124,17 +124,31 @@ export default function Home() {
 
   if (!myAddress) return (
     <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-md text-center fade-in">
+      <div className="w-full max-w-lg text-center fade-in">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 flex items-center justify-center text-2xl">📞</div>
         <h1 className="text-5xl font-bold tracking-tight text-white">VexDial</h1>
         <p className="mt-2 text-cyan-400 text-sm tracking-widest">WALLET-TO-WALLET CALLING</p>
-        <div className="mt-10 space-y-3">
+        <p className="mt-4 text-gray-400 text-sm max-w-md mx-auto">Call, message, and video chat any wallet address. Works across Solana, Ethereum, BNB, ATOM, and .vex names. End-to-end encrypted. Non-custodial.</p>
+
+        <div className="mt-8 text-left bg-white/5 rounded-2xl p-5 border border-white/10 text-sm space-y-2">
+          <p className="font-medium text-cyan-300">How it works</p>
+          <p>1. Connect any wallet or create a Vex Wallet</p>
+          <p>2. Enter an address or name.vex</p>
+          <p>3. Call or message instantly</p>
+          <p className="text-xs text-gray-500 pt-1">Supports interchain calling. Your keys never leave your device.</p>
+        </div>
+
+        <div className="mt-8 space-y-3">
           <WalletMultiButton className="!w-full !justify-center !py-3 !rounded-xl" />
           <button onClick={makeVexWallet} className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium transition">Create Vex Wallet</button>
           <button onClick={connectMetaMask} className="w-full py-3 bg-orange-600 hover:bg-orange-500 rounded-xl font-medium transition">Connect MetaMask</button>
         </div>
+
         <p className="mt-6 text-xs text-gray-500">Non-custodial. Keys stay on your device.</p>
-        <a href="https://x.com/VexDial" className="mt-4 inline-block text-sm text-cyan-400">@VexDial</a>
+        <div className="mt-4 flex justify-center gap-6 text-sm">
+          <a href="https://x.com/VexDial" className="text-cyan-400 hover:underline">X @VexDial</a>
+          <a href="https://t.me/vexdial" className="text-cyan-400 hover:underline">Telegram</a>
+        </div>
       </div>
     </div>
   );
@@ -224,6 +238,7 @@ export default function Home() {
             <div>
               <h1 className="text-2xl font-bold text-cyan-400">VexDial</h1>
               <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
+              <a href="https://t.me/vexdial" className="text-xs text-cyan-400/70 ml-2">Telegram</a>
             </div>
             <div className={`w-3 h-3 rounded-full ${webrtc.connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
             <span className="text-xs text-gray-500">{webrtc.connected ? 'online' : 'offline'}</span>
