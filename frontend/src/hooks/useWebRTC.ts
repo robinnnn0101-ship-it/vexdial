@@ -4,17 +4,20 @@ import { io, Socket } from 'socket.io-client';
 
 const SIGNALING = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
 
-function playTone(freq = 440, dur = 0.25) {
+function playRingtone() {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const o = ctx.createOscillator();
+    const now = ctx.currentTime;
+    const o1 = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
     const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = freq;
-    g.gain.setValueAtTime(0.25, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + dur);
-    o.start();
-    o.stop(ctx.currentTime + dur);
+    o1.frequency.value = 440;
+    o2.frequency.value = 480;
+    o1.connect(g); o2.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.18, now);
+    g.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+    o1.start(now); o2.start(now);
+    o1.stop(now + 0.35); o2.stop(now + 0.35);
   } catch {}
 }
 
@@ -108,7 +111,7 @@ export function useWebRTC(myAddress: string | null) {
       pendingOffer.current = offer;
       setStatus('ringing');
       stopRing();
-      ringInterval.current = setInterval(() => playTone(880, 0.18), 1400);
+      ringInterval.current = setInterval(() => playRingtone(), 1400);
     });
 
     socket.on('call-answered', async ({ answer }) => {
@@ -256,7 +259,7 @@ export function useWebRTC(myAddress: string | null) {
     remoteAddrRef.current = cleanTarget;
     setStatus('calling');
     stopRing();
-    ringInterval.current = setInterval(() => playTone(440, 0.12), 1800);
+    ringInterval.current = setInterval(() => playRingtone(), 1600);
 
     try {
       const stream = await getStream(withVideo);
