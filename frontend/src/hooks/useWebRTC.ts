@@ -196,6 +196,9 @@ export function useWebRTC(myAddress: string | null) {
       if (!stream) stream = new MediaStream([track]);
       stream.getTracks().forEach(t => { t.enabled = true; });
       setRemoteStream(stream);
+      setTimeout(() => {
+        stream.getAudioTracks().forEach(t => { t.enabled = true; });
+      }, 100);
     };
     pc.onicecandidate = (e) => {
       if (e.candidate && socketRef.current && remoteAddrRef.current) {
