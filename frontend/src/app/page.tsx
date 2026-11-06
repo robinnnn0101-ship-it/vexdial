@@ -113,13 +113,15 @@ export default function Home() {
     } catch { setOnlineStatus('unknown'); }
   };
 
-  const connectMetaMask = async () => {
+  const connectEVM = async (name: string) => {
     const eth = (window as any).ethereum;
-    if (!eth) return alert('MetaMask not found');
+    if (!eth) return alert(name + ' not found. Install the extension or open in its browser.');
     try {
       const accounts = await eth.request({ method: 'eth_requestAccounts' });
-      if (accounts[0]) saveIdentity({ address: accounts[0], chain: 'eth', label: 'MetaMask' });
-    } catch { alert('MetaMask failed'); }
+      if (accounts[0]) saveIdentity({ address: accounts[0], chain: 'eth', label: name });
+    } catch (e: any) {
+      alert(name + ' connection failed: ' + (e?.message || 'rejected'));
+    }
   };
 
   const sendReaction = (emoji: string) => {
@@ -147,10 +149,11 @@ export default function Home() {
           <WalletMultiButton className="!w-full !justify-center !py-3 !rounded-xl" />
           <button onClick={makeVexWallet} className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium transition">Create Quantumproof Vex Wallet</button>
           <button onClick={loginWithKey} className="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-medium transition">Login with Vex Private Key</button>
-          <button onClick={connectMetaMask} className="w-full py-3 bg-orange-600 hover:bg-orange-500 rounded-xl font-medium transition">Connect MetaMask</button>
+          <button onClick={() => connectEVM('MetaMask')} className="w-full py-3 bg-orange-600 hover:bg-orange-500 rounded-xl font-medium transition">Connect MetaMask</button>
+          <button onClick={() => connectEVM('Trust Wallet')} className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium transition">Connect Trust Wallet</button>
         </div>
 
-        <p className="mt-6 text-xs text-gray-500">Non-custodial. Keys stay on your device.</p>
+        <p className="mt-6 text-xs text-gray-500">Non-custodial. Keys stay on your device. Any address works for calling.</p>
         <div className="mt-4 flex justify-center gap-6 text-sm">
           <a href="https://x.com/VexDial" className="text-cyan-400 hover:underline">X @VexDial</a>
           <a href="https://t.me/vexdial" className="text-cyan-400 hover:underline">Telegram</a>
