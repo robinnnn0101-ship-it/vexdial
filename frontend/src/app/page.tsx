@@ -39,11 +39,10 @@ export default function Home() {
       el.srcObject = webrtc.remoteStream;
       el.muted = false;
       el.volume = 1;
-      el.play().catch(() => {
-        const resume = () => el.play().catch(() => {});
-        document.addEventListener('click', resume, { once: true });
-        document.addEventListener('touchstart', resume, { once: true });
-      });
+      const play = () => el.play().catch(() => {});
+      play();
+      document.addEventListener('click', play, { once: true });
+      document.addEventListener('touchstart', play, { once: true });
     }
     if (remoteRef.current) {
       remoteRef.current.srcObject = webrtc.remoteStream;
@@ -253,7 +252,7 @@ export default function Home() {
 
         {tab === 'dial' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-            <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Address or name.vex" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
+            <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Wallet address or name.vex" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
             <div className="flex items-center gap-3 mb-4">
               <button onClick={checkOnline} className="px-3 py-1.5 text-xs bg-white/10 rounded-lg">Check</button>
               {onlineStatus !== 'unknown' && <span className={`text-xs ${onlineStatus==='online'?'text-emerald-400':'text-red-400'}`}>{onlineStatus}</span>}
@@ -278,7 +277,10 @@ export default function Home() {
                   <p className="text-sm">{c.name || 'Unnamed'}</p>
                   <p className="text-xs text-gray-500 font-mono">{c.address.slice(0,12)}…</p>
                 </div>
-                <button onClick={() => { setTarget(c.address); setTab('dial'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Call</button>
+                <div className="flex gap-2">
+                  <button onClick={() => { setTarget(c.address); setTab('messages'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Msg</button>
+                  <button onClick={() => { setTarget(c.address); setTab('dial'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Call</button>
+                </div>
               </div>
             ))}
           </div>
@@ -287,17 +289,27 @@ export default function Home() {
         {tab === 'messages' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
             <h2 className="font-medium mb-4">Messages</h2>
-            <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
-            <div className="bg-white/5 rounded-xl p-3 h-40 overflow-y-auto text-sm mb-2">
+            <div className="flex gap-2 mb-4">
+              <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm" />
+              <button onClick={addContact} className="px-3 py-2 bg-white/10 rounded-xl text-xs">Add</button>
+            </div>
+            <div className="flex gap-2 mb-3 overflow-x-auto">
+              {contacts.map(c => (
+                <button key={c.address} onClick={() => setTarget(c.address)} className={`shrink-0 px-3 py-1.5 rounded-lg text-xs ${target===c.address?'bg-cyan-600':'bg-white/10'}`}>{c.name || c.address.slice(0,8)}</button>
+              ))}
+            </div>
+            <div className="bg-black/40 rounded-xl p-3 h-48 overflow-y-auto text-sm mb-3 space-y-2">
               {webrtc.chat.filter(m => m.to === target || m.from === target).map((m,i) => (
-                <div key={i} className={m.from === myAddress ? 'text-right' : ''}>
-                  <span className="text-cyan-400">{m.from?.slice(0,6)}</span> {m.text}
-                  {m.status ? <span className="text-gray-500 text-xs ml-1">· {m.status}</span> : null}
+                <div key={i} className={`flex ${m.from === myAddress ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-xl ${m.from === myAddress ? 'bg-cyan-600' : 'bg-white/10'}`}>
+                    <p>{m.text}</p>
+                    {m.status && <p className="text-xs opacity-60 text-right">{m.status}</p>}
+                  </div>
                 </div>
               ))}
             </div>
             <form onSubmit={async e => { e.preventDefault(); if (target.trim()) { const addr = await resolve(target); webrtc.sendChat(chatInput, addr); setChatInput(''); } }} className="flex gap-2">
-              <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm" placeholder="Message" />
+              <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm" placeholder="Message" />
               <button className="px-4 py-2 bg-cyan-600 rounded-xl text-sm">Send</button>
             </form>
           </div>
