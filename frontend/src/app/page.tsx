@@ -130,7 +130,7 @@ export default function Home() {
   if (!myAddress) return (
     <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-lg text-center fade-in">
-        <img src="/logo.jpg" alt="VexDial" className="w-24 h-24 mx-auto mb-4 rounded-full object-cover" />
+        <img src="/logo.svg" alt="VexDial" className="w-24 h-24 mx-auto mb-4" />
         <h1 className="text-5xl font-bold tracking-tight text-white">VexDial</h1>
         <p className="mt-2 text-cyan-400 text-sm tracking-widest">WALLET-TO-WALLET CALLING</p>
         <p className="mt-4 text-gray-400 text-sm max-w-md mx-auto">Call, message, and video chat any wallet address. Works across Solana, Ethereum, BNB, ATOM, and .vex names. End-to-end encrypted. Non-custodial.</p>
@@ -240,7 +240,7 @@ export default function Home() {
       <div className="max-w-lg mx-auto p-6">
         <header className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpg" alt="V" className="w-10 h-10 rounded-xl object-cover" />
+            <img src="/logo.svg" alt="V" className="w-10 h-10" />
             <div>
               <h1 className="text-2xl font-bold text-cyan-400">VexDial</h1>
               <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
