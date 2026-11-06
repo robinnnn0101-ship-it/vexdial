@@ -39,10 +39,13 @@ export default function Home() {
       el.srcObject = webrtc.remoteStream;
       el.muted = false;
       el.volume = 1;
-      const play = () => el.play().catch(() => {});
-      play();
-      document.addEventListener('click', play, { once: true });
-      document.addEventListener('touchstart', play, { once: true });
+      const tryPlay = () => {
+        el.play().catch(() => {});
+      };
+      tryPlay();
+      const onInteract = () => tryPlay();
+      document.addEventListener('click', onInteract, { once: true });
+      document.addEventListener('touchstart', onInteract, { once: true });
     }
     if (remoteRef.current) {
       remoteRef.current.srcObject = webrtc.remoteStream;
@@ -77,7 +80,7 @@ export default function Home() {
     if (!target.trim()) return alert('Enter address or name');
     const addr = await resolve(target);
     if (addr === target.trim() && target.endsWith('.vex')) return alert('Name not found');
-    webrtc.startCall(addr, undefined, video);
+    webrtc.startCall(addr, video);
   };
 
   const addContact = () => {
@@ -121,7 +124,7 @@ export default function Home() {
 
   if (!myAddress) return (
     <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-md text-center">
+      <div className="w-full max-w-md text-center fade-in">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 flex items-center justify-center text-2xl">📞</div>
         <h1 className="text-5xl font-bold tracking-tight text-white">VexDial</h1>
         <p className="mt-2 text-cyan-400 text-sm tracking-widest">WALLET-TO-WALLET CALLING</p>
@@ -137,43 +140,43 @@ export default function Home() {
   );
 
   if (webrtc.status === 'ringing') return (
-    <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center">
-      <div className="bg-[#0f1218] border border-white/10 rounded-2xl p-10 text-center max-w-sm w-full">
-        <div className="w-20 h-20 mx-auto rounded-full bg-cyan-500/20 flex items-center justify-center mb-4 animate-pulse">
-          <span className="text-3xl">📞</span>
+    <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center fade-in">
+      <div className="bg-[#0f1218] border border-white/10 rounded-3xl p-12 text-center max-w-sm w-full shadow-2xl">
+        <div className="w-24 h-24 mx-auto rounded-full bg-cyan-500/20 flex items-center justify-center mb-6 ring-animate">
+          <span className="text-4xl">📞</span>
         </div>
-        <h2 className="text-2xl font-semibold">Incoming Call</h2>
-        <p className="text-gray-400 text-sm mt-2 break-all">{webrtc.remoteAddress}</p>
-        <div className="flex gap-3 mt-8">
-          <button onClick={() => { logCall(webrtc.remoteAddress || '', 'incoming', 0); webrtc.acceptCall(); }} className="flex-1 py-3 bg-emerald-600 rounded-xl font-medium">Accept</button>
-          <button onClick={webrtc.rejectCall} className="flex-1 py-3 bg-red-600 rounded-xl font-medium">Decline</button>
+        <h2 className="text-3xl font-semibold tracking-tight">Incoming Call</h2>
+        <p className="text-gray-400 text-sm mt-3 break-all px-2">{webrtc.remoteAddress}</p>
+        <div className="flex gap-4 mt-10">
+          <button onClick={() => { logCall(webrtc.remoteAddress || '', 'incoming', 0); webrtc.acceptCall(); }} className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 rounded-2xl font-medium transition">Accept</button>
+          <button onClick={webrtc.rejectCall} className="flex-1 py-4 bg-red-600 hover:bg-red-500 rounded-2xl font-medium transition">Decline</button>
         </div>
       </div>
     </div>
   );
 
   if (webrtc.status === 'calling' || webrtc.status === 'connected') return (
-    <div className="min-h-screen bg-[#05070a] text-white flex flex-col">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+    <div className="min-h-screen bg-[#05070a] text-white flex flex-col fade-in">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-black/40 backdrop-blur">
         <div>
-          <span className="text-cyan-400 font-semibold">VexDial</span>
+          <span className="text-cyan-400 font-semibold text-lg">VexDial</span>
           <span className="ml-3 text-sm text-gray-400">
             {webrtc.status === 'calling' ? 'Calling…' : `${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')}`}
           </span>
         </div>
-        <span className="text-xs text-gray-500 truncate max-w-[200px]">{webrtc.remoteAddress}</span>
+        <span className="text-xs text-gray-500 truncate max-w-[220px]">{webrtc.remoteAddress}</span>
       </header>
 
       <div className="flex-1 relative p-4">
         <audio ref={audioRef} autoPlay playsInline />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-          <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto">
+          <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto border border-white/5">
             <video ref={localRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-            <span className="absolute bottom-3 left-3 text-xs bg-black/70 px-2 py-1 rounded-lg">You</span>
+            <span className="absolute bottom-3 left-3 text-xs bg-black/70 px-2.5 py-1 rounded-lg">You</span>
           </div>
-          <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto">
+          <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto border border-white/5">
             <video ref={remoteRef} autoPlay playsInline className="w-full h-full object-cover" />
-            <span className="absolute bottom-3 left-3 text-xs bg-black/70 px-2 py-1 rounded-lg">Remote</span>
+            <span className="absolute bottom-3 left-3 text-xs bg-black/70 px-2.5 py-1 rounded-lg">Remote</span>
           </div>
         </div>
         <div className="absolute top-8 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-none">
@@ -181,18 +184,18 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="border-t border-white/10 p-4">
+      <div className="border-t border-white/10 p-4 bg-black/30 backdrop-blur">
         <div className="flex justify-center gap-2 mb-4">
           {['👍','❤️','😂','👏','🔥'].map(e => (
             <button key={e} onClick={() => sendReaction(e)} className="text-xl hover:scale-110 transition">{e}</button>
           ))}
         </div>
-        <div className="flex justify-center gap-3 mb-4">
-          <button onClick={() => audioRef.current?.play().catch(() => {})} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">Speaker</button>
-          <button onClick={webrtc.toggleMute} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
-          <button onClick={webrtc.toggleCamera} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
-          <button onClick={webrtc.startScreenShare} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm">Share</button>
-          <button onClick={() => { if (webrtc.callStart) logCall(webrtc.remoteAddress || target, webrtc.status === 'calling' ? 'outgoing' : 'incoming', Math.floor((Date.now() - webrtc.callStart) / 1000)); webrtc.hangup(); }} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-full text-sm font-medium">End</button>
+        <div className="flex justify-center gap-3 mb-4 flex-wrap">
+          <button onClick={() => audioRef.current?.play().catch(() => {})} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm transition">Speaker</button>
+          <button onClick={webrtc.toggleMute} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm transition">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
+          <button onClick={webrtc.toggleCamera} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm transition">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
+          <button onClick={webrtc.startScreenShare} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-sm transition">Share</button>
+          <button onClick={() => { if (webrtc.callStart) logCall(webrtc.remoteAddress || target, webrtc.status === 'calling' ? 'outgoing' : 'incoming', Math.floor((Date.now() - webrtc.callStart) / 1000)); webrtc.hangup(); }} className="px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-full text-sm font-medium transition">End</button>
         </div>
         <div className="max-w-xl mx-auto">
           <div className="bg-white/5 rounded-xl p-3 h-28 overflow-y-auto text-sm mb-2">
@@ -217,10 +220,10 @@ export default function Home() {
       <div className="max-w-lg mx-auto p-6">
         <header className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 flex items-center justify-center text-sm">📞</div>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold">V</div>
             <div>
-              <h1 className="text-2xl font-bold text-white">VexDial</h1>
-              <p className="text-xs text-cyan-400 tracking-wider">WALLET-TO-WALLET</p>
+              <h1 className="text-2xl font-bold text-cyan-400">VexDial</h1>
+              <a href="https://x.com/VexDial" className="text-xs text-cyan-400/70">@VexDial</a>
             </div>
             <div className={`w-3 h-3 rounded-full ${webrtc.connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
             <span className="text-xs text-gray-500">{webrtc.connected ? 'online' : 'offline'}</span>
