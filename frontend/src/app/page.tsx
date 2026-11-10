@@ -22,6 +22,7 @@ export default function Home() {
   const [msgSearch, setMsgSearch] = useState('');
   const [missedCount, setMissedCount] = useState(0);
   const [namesList, setNamesList] = useState<any[]>([]);
+  const [copied, setCopied] = useState(false);
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -151,6 +152,13 @@ export default function Home() {
     } catch { alert(name + ' failed'); }
   };
 
+  const copyAddress = () => {
+    if (!myAddress) return;
+    navigator.clipboard.writeText(myAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   const sendReaction = (emoji: string) => {
     setReactions(p => [...p, emoji]);
     setTimeout(() => setReactions(p => p.slice(1)), 2000);
@@ -250,10 +258,7 @@ export default function Home() {
       <aside className="w-56 bg-[#0a0d12] border-r border-white/10 p-4 flex flex-col">
         <div className="flex items-center gap-2 mb-8">
           <img src="/logo.svg" alt="V" className="w-8 h-8" />
-          <div>
-            <p className="font-bold text-cyan-400">VexDial</p>
-            <p className="text-xs text-gray-500">v1.0</p>
-          </div>
+          <p className="font-bold text-cyan-400">VexDial</p>
         </div>
         <nav className="space-y-1 flex-1">
           {['dial','contacts','history','messages','names'].map(t => (
@@ -264,8 +269,8 @@ export default function Home() {
           ))}
         </nav>
         <div className="mt-auto pt-4 border-t border-white/10 text-xs text-gray-500">
-          <p className="font-mono truncate">{myAddress?.slice(0,8)}…</p>
-          <p className="text-emerald-400">P2P Secured</p>
+          <button onClick={copyAddress} className="w-full text-left font-mono truncate hover:text-cyan-400">{copied ? 'Copied' : myAddress?.slice(0,10) + '…'}</button>
+          <p className="text-emerald-400 mt-1">P2P Secured</p>
         </div>
       </aside>
 
@@ -277,7 +282,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <span className={`text-xs px-3 py-1 rounded-full ${webrtc.connected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{webrtc.connected ? 'Signaling: Online' : 'Signaling: Offline'}</span>
-            <span className="text-xs px-3 py-1 bg-white/10 rounded-full font-mono">{myAddress?.slice(0,6)}…</span>
+            <button onClick={copyAddress} className="text-xs px-3 py-1 bg-white/10 rounded-full font-mono hover:bg-white/20">{copied ? 'Copied' : myAddress?.slice(0,8) + '…'}</button>
             <button onClick={() => window.location.reload()} className="text-xs px-3 py-1 bg-white/10 rounded-lg">Reconnect</button>
             {connected ? <WalletMultiButton /> : <button onClick={clearIdentity} className="text-xs px-3 py-1 bg-white/10 rounded-lg">Logout</button>}
           </div>
@@ -316,6 +321,13 @@ export default function Home() {
               </div>
             </div>
             <div className="space-y-4">
+              <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+                <div className="flex justify-between items-center mb-3">
+                  <p className="text-sm font-medium">Your Address</p>
+                  <button onClick={copyAddress} className="text-xs px-2 py-1 bg-white/10 rounded">{copied ? 'Copied' : 'Copy'}</button>
+                </div>
+                <p className="font-mono text-xs break-all text-gray-300">{myAddress}</p>
+              </div>
               <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
                 <p className="text-sm font-medium mb-3">VexBook Address Book</p>
                 {contacts.length === 0 && <p className="text-xs text-gray-500">No contacts yet</p>}
