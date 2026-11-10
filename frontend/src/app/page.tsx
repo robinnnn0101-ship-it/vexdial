@@ -164,6 +164,8 @@ export default function Home() {
     setTimeout(() => setReactions(p => p.slice(1)), 2000);
   };
 
+  const navItems = ['dial','contacts','history','messages','names','about','privacy'];
+
   if (!myAddress) return (
     <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-lg text-center fade-in">
@@ -255,13 +257,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#05070a] text-white flex">
-      <aside className="w-56 bg-[#0a0d12] border-r border-white/10 p-4 flex flex-col">
+      <aside className="w-56 bg-[#0a0d12] border-r border-white/10 p-4 flex flex-col shrink-0">
         <div className="flex items-center gap-2 mb-8">
           <img src="/logo.svg" alt="V" className="w-8 h-8" />
           <p className="font-bold text-cyan-400">VexDial</p>
         </div>
         <nav className="space-y-1 flex-1">
-          {['dial','contacts','history','messages','names'].map(t => (
+          {navItems.map(t => (
             <button key={t} onClick={() => setTab(t)} className={`w-full text-left px-3 py-2 rounded-lg text-sm capitalize ${tab===t ? 'bg-cyan-600/20 text-cyan-400' : 'text-gray-400 hover:bg-white/5'}`}>
               {t === 'contacts' ? 'VexBook' : t}
               {t === 'history' && missedCount > 0 && <span className="ml-2 text-xs bg-red-500 text-white px-1.5 rounded-full">{missedCount}</span>}
@@ -274,14 +276,14 @@ export default function Home() {
         </div>
       </aside>
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-6 overflow-y-auto">
         <header className="flex items-center justify-between mb-6">
           <div>
             <p className="text-xs text-gray-500">VexDial › {tab}</p>
-            <h1 className="text-xl font-semibold">Call Console</h1>
+            <h1 className="text-xl font-semibold capitalize">{tab === 'dial' ? 'Call Console' : tab}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`text-xs px-3 py-1 rounded-full ${webrtc.connected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{webrtc.connected ? 'Signaling: Online' : 'Signaling: Offline'}</span>
+            <span className={`text-xs px-3 py-1 rounded-full ${webrtc.connected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{webrtc.connected ? 'Online' : 'Offline'}</span>
             <button onClick={copyAddress} className="text-xs px-3 py-1 bg-white/10 rounded-full font-mono hover:bg-white/20">{copied ? 'Copied' : myAddress?.slice(0,8) + '…'}</button>
             <button onClick={() => window.location.reload()} className="text-xs px-3 py-1 bg-white/10 rounded-lg">Reconnect</button>
             {connected ? <WalletMultiButton /> : <button onClick={clearIdentity} className="text-xs px-3 py-1 bg-white/10 rounded-lg">Logout</button>}
@@ -439,6 +441,40 @@ export default function Home() {
                 <button onClick={() => { setTarget(h.address); setTab('dial'); }} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Call</button>
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === 'about' && (
+          <div className="bg-white/5 rounded-2xl p-8 border border-white/10 max-w-2xl space-y-6">
+            <h2 className="text-2xl font-semibold">About VexDial</h2>
+            <p className="text-gray-400 text-sm leading-relaxed">VexDial is a wallet-to-wallet calling and messaging platform. Your wallet address is your phone number. No phone numbers, no central accounts, no middlemen.</p>
+            <div className="space-y-3 text-sm">
+              <p><span className="text-cyan-400">Built by</span> Vexlore</p>
+              <p><span className="text-cyan-400">Features</span> Voice, video, messages, .vex names, interchain calling</p>
+              <p><span className="text-cyan-400">Encryption</span> End-to-end via WebRTC DTLS-SRTP</p>
+              <p><span className="text-cyan-400">Custody</span> Non-custodial. Keys never leave your device.</p>
+            </div>
+            <div className="flex gap-4 pt-2">
+              <a href="https://x.com/VexDial" className="px-4 py-2 bg-cyan-600 rounded-lg text-sm hover:bg-cyan-500">X @VexDial</a>
+              <a href="https://t.me/vexdial" className="px-4 py-2 bg-blue-600 rounded-lg text-sm hover:bg-blue-500">Telegram</a>
+            </div>
+          </div>
+        )}
+
+        {tab === 'privacy' && (
+          <div className="bg-white/5 rounded-2xl p-8 border border-white/10 max-w-2xl space-y-4 text-sm text-gray-400 leading-relaxed">
+            <h2 className="text-2xl font-semibold text-white">Privacy Policy</h2>
+            <p>VexDial is non-custodial. We do not store your private keys, seed phrases, or call content.</p>
+            <p><span className="text-white">Calls and messages</span> are peer-to-peer via WebRTC. Media is encrypted end-to-end and never touches our servers.</p>
+            <p><span className="text-white">Signaling</span> uses a temporary WebSocket connection to exchange connection details only. No call audio or video is recorded or stored.</p>
+            <p><span className="text-white">.vex names</span> and online presence are stored on the signaling server so others can find you. You can request deletion by contacting us.</p>
+            <p><span className="text-white">Local data</span> such as contacts and call history stay in your browser only.</p>
+            <p><span className="text-white">Wallets</span> connect via standard wallet adapters. We never receive or transmit your private keys.</p>
+            <p>By using VexDial you agree to this policy. Last updated November 2026.</p>
+            <div className="flex gap-4 pt-2">
+              <a href="https://x.com/VexDial" className="text-cyan-400 hover:underline">X @VexDial</a>
+              <a href="https://t.me/vexdial" className="text-cyan-400 hover:underline">Telegram</a>
+            </div>
           </div>
         )}
       </main>
