@@ -241,8 +241,9 @@ export default function Home() {
         </div>
         <button onClick={() => {
           if (audioRef.current) { audioRef.current.muted = false; audioRef.current.volume = 1; audioRef.current.play().catch(()=>{}); }
-          if (remoteRef.current) { remoteRef.current.muted = false; remoteRef.current.play().catch(()=>{}); }
-        }} className="absolute top-4 right-4 px-3 py-1.5 bg-cyan-600 text-xs rounded-full">Tap for Audio</button>
+          if (remoteRef.current) { remoteRef.current.muted = false; remoteRef.current.playsInline = true; remoteRef.current.play().catch(()=>{}); }
+          if (localRef.current) { localRef.current.play().catch(()=>{}); }
+        }} className="absolute top-4 right-4 px-3 py-1.5 bg-cyan-600 text-xs rounded-full z-10">Tap for Audio</button>
       </div>
       <div className="border-t border-white/10 p-3 sm:p-4 bg-black/30 backdrop-blur">
         <div className="flex justify-center gap-2 mb-3 flex-wrap">
