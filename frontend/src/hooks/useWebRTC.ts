@@ -39,6 +39,7 @@ export function useWebRTC(myAddress: string | null) {
   const callIdRef = useRef('');
   const ringInterval = useRef<any>(null);
   const remoteAddrRef = useRef<string | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   const stopRing = () => {
     if (ringInterval.current) clearInterval(ringInterval.current);
@@ -51,8 +52,9 @@ export function useWebRTC(myAddress: string | null) {
       pcRef.current.close();
       pcRef.current = null;
     }
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
     }
     setLocalStream(null);
     setRemoteStream(null);
@@ -101,12 +103,13 @@ export function useWebRTC(myAddress: string | null) {
     socket.on('reconnect', register);
     socket.on('registered', () => setConnected(true));
 
-    const regInterval = setInterval(register, 4000);
+    const regInterval = setInterval(register, 5000);
     window.addEventListener('focus', register);
     document.addEventListener('visibilitychange', register);
 
     socket.on('incoming-call', ({ from, offer, callId }) => {
       setRemoteAddress(from);
+      remoteAddrRef.current = from;
       callIdRef.current = callId;
       pendingOffer.current = offer;
       setStatus('ringing');
@@ -184,10 +187,22 @@ export function useWebRTC(myAddress: string | null) {
     if (video) {
       constraints.video = { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' };
     }
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    stream.getAudioTracks().forEach(t => { t.enabled = true; });
-    if (video) stream.getVideoTracks().forEach(t => { t.enabled = true; });
-    return stream;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      stream.getAudioTracks().forEach(t => { t.enabled = true; });
+      if (video) stream.getVideoTracks().forEach(t => { t.enabled = true; });
+      localStreamRef.current = stream;
+      return stream;
+    } catch (err) {
+      if (video) {
+        try {
+          const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true });
+          localStreamRef.current = audioOnly;
+          return audioOnly;
+        } catch {}
+      }
+      throw err;
+    }
   };
 
   const makePC = (stream: MediaStream) => {
@@ -217,13 +232,12 @@ export function useWebRTC(myAddress: string | null) {
         remote = new MediaStream([track]);
       }
       remote.getTracks().forEach(t => { t.enabled = true; });
-
       setRemoteStream(remote);
 
       setTimeout(() => {
         remote.getAudioTracks().forEach(t => { t.enabled = true; });
         remote.getVideoTracks().forEach(t => { t.enabled = true; });
-      }, 200);
+      }, 300);
     };
 
     pc.onicecandidate = (e) => {
@@ -237,8 +251,8 @@ export function useWebRTC(myAddress: string | null) {
     };
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-        console.warn('PC state:', pc.connectionState);
+      if (pc.connectionState === 'connected') {
+        setStatus('connected');
       }
     };
 
@@ -249,7 +263,7 @@ export function useWebRTC(myAddress: string | null) {
     if (!socketRef.current) return alert('Not connected to server');
     if (!socketRef.current.connected) {
       socketRef.current.connect();
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 1500));
       if (!socketRef.current.connected) return alert('Cannot reach signaling server');
     }
     if (!myAddress) return alert('No identity');
@@ -283,7 +297,7 @@ export function useWebRTC(myAddress: string | null) {
       console.error(err);
       stopRing();
       cleanup();
-      alert('Failed to start call. Check mic/camera permission.');
+      alert('Failed to start call. Allow mic/camera permission.');
     }
   };
 
@@ -335,12 +349,12 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const toggleMute = () => {
-    localStream?.getAudioTracks().forEach(t => { t.enabled = muted; });
+    localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = muted; });
     setMuted(!muted);
   };
 
   const toggleCamera = () => {
-    localStream?.getVideoTracks().forEach(t => { t.enabled = cameraOff; });
+    localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = cameraOff; });
     setCameraOff(!cameraOff);
   };
 
