@@ -135,8 +135,9 @@ export function useWebRTC(myAddress: string | null) {
 
     socket.on('ice-candidate', async ({ candidate }) => {
       if (!candidate) return;
-      if (pcRef.current?.remoteDescription) {
-        try { await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
+      const pc = pcRef.current;
+      if (pc && pc.remoteDescription) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) { console.warn('ice add failed', e); }
       } else {
         pendingCands.current.push(candidate);
       }
@@ -251,6 +252,7 @@ export function useWebRTC(myAddress: string | null) {
       if (e.candidate && socketRef.current && remoteAddrRef.current) {
         socketRef.current.emit('ice-candidate', {
           to: remoteAddrRef.current,
+          from: myAddress,
           candidate: e.candidate,
           callId: callIdRef.current,
         });
