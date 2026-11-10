@@ -232,15 +232,19 @@ export function useWebRTC(myAddress: string | null) {
 
       let remote = event.streams?.[0];
       if (!remote) {
-        remote = new MediaStream([track]);
+        remote = new MediaStream();
+        remote.addTrack(track);
       }
       remote.getTracks().forEach(t => { t.enabled = true; });
-      setRemoteStream(remote);
+      setRemoteStream(prev => {
+        if (prev && prev.id === remote.id) return prev;
+        return remote;
+      });
 
       setTimeout(() => {
         remote.getAudioTracks().forEach(t => { t.enabled = true; });
         remote.getVideoTracks().forEach(t => { t.enabled = true; });
-      }, 300);
+      }, 100);
     };
 
     pc.onicecandidate = (e) => {
@@ -283,7 +287,7 @@ export function useWebRTC(myAddress: string | null) {
       setLocalStream(stream);
       const pc = makePC(stream);
 
-      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: withVideo });
+      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
       await pc.setLocalDescription(offer);
 
       const cid = [myAddress.trim(), cleanTarget].sort().join('_');
