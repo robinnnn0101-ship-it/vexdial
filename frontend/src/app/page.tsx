@@ -56,8 +56,13 @@ export default function Home() {
     }
     if (remoteRef.current) {
       remoteRef.current.srcObject = webrtc.remoteStream;
+      remoteRef.current.muted = false;
+      remoteRef.current.playsInline = true;
       remoteRef.current.play().catch(() => {});
     }
+    // Force track enable
+    webrtc.remoteStream.getAudioTracks().forEach(t => { t.enabled = true; });
+    webrtc.remoteStream.getVideoTracks().forEach(t => { t.enabled = true; });
   }, [webrtc.remoteStream]);
 
   useEffect(() => {
@@ -230,10 +235,14 @@ export default function Home() {
             <span className="absolute bottom-2 left-2 text-xs bg-black/70 px-2 py-1 rounded">You</span>
           </div>
           <div className="relative bg-black rounded-2xl overflow-hidden aspect-video md:aspect-auto border border-white/5">
-            <video ref={remoteRef} autoPlay playsInline className="w-full h-full object-cover" />
+            <video ref={remoteRef} autoPlay playsInline muted={false} className="w-full h-full object-cover" />
             <span className="absolute bottom-2 left-2 text-xs bg-black/70 px-2 py-1 rounded">Remote</span>
           </div>
         </div>
+        <button onClick={() => {
+          if (audioRef.current) { audioRef.current.muted = false; audioRef.current.volume = 1; audioRef.current.play().catch(()=>{}); }
+          if (remoteRef.current) { remoteRef.current.muted = false; remoteRef.current.play().catch(()=>{}); }
+        }} className="absolute top-4 right-4 px-3 py-1.5 bg-cyan-600 text-xs rounded-full">Tap for Audio</button>
       </div>
       <div className="border-t border-white/10 p-3 sm:p-4 bg-black/30 backdrop-blur">
         <div className="flex justify-center gap-2 mb-3 flex-wrap">
