@@ -226,26 +226,21 @@ export function useWebRTC(myAddress: string | null) {
       pc.addTrack(track, stream);
     });
 
+    const remoteAccum = new MediaStream();
     pc.ontrack = (event) => {
       const track = event.track;
       if (!track) return;
       track.enabled = true;
-
-      let remote = event.streams?.[0];
-      if (!remote) {
-        remote = new MediaStream();
-        remote.addTrack(track);
+      if (!remoteAccum.getTracks().some(t => t.id === track.id)) {
+        remoteAccum.addTrack(track);
       }
-      remote.getTracks().forEach(t => { t.enabled = true; });
-      setRemoteStream(prev => {
-        if (prev && prev.id === remote.id) return prev;
-        return remote;
-      });
+      remoteAccum.getTracks().forEach(t => { t.enabled = true; });
+      setRemoteStream(remoteAccum);
 
       setTimeout(() => {
-        remote.getAudioTracks().forEach(t => { t.enabled = true; });
-        remote.getVideoTracks().forEach(t => { t.enabled = true; });
-      }, 100);
+        remoteAccum.getTracks().forEach(t => { t.enabled = true; });
+        setRemoteStream(remoteAccum);
+      }, 200);
     };
 
     pc.onicecandidate = (e) => {
