@@ -51,11 +51,16 @@ export function useWebRTC(myAddress: string | null) {
     if (connectingRef.current) return;
     stopRing();
     if (roomRef.current) {
-      try { await roomRef.current.disconnect(); } catch {}
+      try {
+        roomRef.current.localParticipant.trackPublications.forEach(pub => {
+          try { pub.track?.stop(); } catch {}
+        });
+        await roomRef.current.disconnect();
+      } catch {}
       roomRef.current = null;
     }
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current.getTracks().forEach(t => { try { t.stop(); } catch {} });
       localStreamRef.current = null;
     }
     setLocalStream(null);
@@ -179,43 +184,49 @@ export function useWebRTC(myAddress: string | null) {
     const remote = new MediaStream();
     room.remoteParticipants.forEach(p => {
       p.trackPublications.forEach(pub => {
-        if (pub.track && (pub.track.kind === Track.Kind.Audio || pub.track.kind === Track.Kind.Video)) {
-          remote.addTrack(pub.track.mediaStreamTrack);
+        const t = pub.track;
+        if (t && (t.kind === Track.Kind.Audio || t.kind === Track.Kind.Video)) {
+          remote.addTrack(t.mediaStreamTrack);
         }
       });
     });
-    setRemoteStream(remote.getTracks().length ? remote : null);
+    setRemoteStream(remote.getTracks().length ? new MediaStream(remote.getTracks()) : null);
   };
 
   const connectLiveKit = async (roomName: string, identity: string, video: boolean) => {
     connectingRef.current = true;
     try {
+      // Always start fresh
+      if (roomRef.current) {
+        try { await roomRef.current.disconnect(); } catch {}
+        roomRef.current = null;
+      }
+
       const url = `${SIGNALING}/api/livekit-token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(identity)}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.error || !data.token || !data.url) throw new Error((data.error || 'No LiveKit token') + ' | url=' + SIGNALING);
 
-      const room = new Room({ adaptiveStream: true, dynacast: true });
+      const room = new Room({ adaptiveStream: true, dynacast: true, autoSubscribe: true });
 
       const refresh = () => buildRemote(room);
       room.on(RoomEvent.TrackSubscribed, refresh);
       room.on(RoomEvent.TrackUnsubscribed, refresh);
       room.on(RoomEvent.ParticipantConnected, refresh);
       room.on(RoomEvent.TrackPublished, refresh);
+      room.on(RoomEvent.LocalTrackPublished, refresh);
 
       await room.connect(data.url, data.token);
       roomRef.current = room;
 
-      // Publish local tracks
       const stream = await getStream(video);
       setLocalStream(stream);
       for (const track of stream.getTracks()) {
-        await room.localParticipant.publishTrack(track, { name: track.kind });
+        await room.localParticipant.publishTrack(track, { name: track.kind, simulcast: false });
       }
 
-      // Initial remote pull
-      setTimeout(refresh, 300);
-      setTimeout(refresh, 1200);
+      // Pull remote several times so late tracks are caught
+      [200, 600, 1500, 3000].forEach(ms => setTimeout(refresh, ms));
     } finally {
       connectingRef.current = false;
     }
