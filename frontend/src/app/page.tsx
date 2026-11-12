@@ -24,6 +24,7 @@ export default function Home() {
   const [namesList, setNamesList] = useState<any[]>([]);
   const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
   const [nameSearch, setNameSearch] = useState('');
+  const [myName, setMyName] = useState('');
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const localRef = useRef<HTMLVideoElement>(null);
@@ -53,6 +54,17 @@ export default function Home() {
   }, [contacts]);
 
   useEffect(() => { if (tab === 'names') loadNames(); }, [tab]);
+
+  useEffect(() => {
+    if (!myAddress) return;
+    const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+    fetch(`${base}/api/names`).then(r => r.json()).then(d => {
+      const list = d.names || [];
+      const mine = list.find((n: any) => n.address === myAddress);
+      if (mine) setMyName(mine.name);
+    }).catch(() => {});
+  }, [myAddress, namesList]);
+
 
 
   useEffect(() => {
@@ -370,10 +382,12 @@ export default function Home() {
                     <button onClick={() => myAddress && navigator.share?.({ title: 'Call me on VexDial', text: myAddress })} className="text-xs px-2 py-1 bg-white/10 rounded">Share</button>
                   </div>
                 </div>
+                {myName && <p className="text-cyan-400 font-medium text-sm mb-1">{myName}</p>}
                 <p className="font-mono text-xs break-all text-gray-300 mb-3">{myAddress}</p>
                 {myAddress && (
-                  <div className="flex justify-center">
-                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(myAddress)}`} alt="QR" className="rounded-lg bg-white p-1" />
+                  <div className="flex flex-col items-center">
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(myName || myAddress)}`} alt="QR" className="rounded-lg bg-white p-1" />
+                    <p className="text-[10px] text-gray-500 mt-1">{myName ? 'Scan to call ' + myName : 'Scan to call'}</p>
                   </div>
                 )}
               </div>
