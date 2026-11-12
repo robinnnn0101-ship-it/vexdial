@@ -74,6 +74,10 @@ app.post('/api/names', (req, res) => {
   if (!name.endsWith('.vex')) return res.json({ ok: false, error: 'must end with .vex' });
   if (names.has(name)) return res.json({ ok: false, error: 'name taken' });
   if (PREMIUM.has(name) && admin !== ADMIN) return res.json({ ok: false, error: 'premium name' });
+  // One name per wallet
+  for (const [n, d] of names.entries()) {
+    if (d.address === address) return res.json({ ok: false, error: 'this wallet already has a name' });
+  }
   names.set(name, { address, registered: Date.now() });
   res.json({ ok: true, name, address });
 });
