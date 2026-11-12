@@ -221,14 +221,23 @@ export function useWebRTC(myAddress: string | null) {
       await room.connect(data.url, data.token);
       roomRef.current = room;
 
-      const stream = await getStream(video);
-      setLocalStream(stream);
-      for (const track of stream.getTracks()) {
-        await room.localParticipant.publishTrack(track, { name: track.kind, simulcast: false });
+      // Use LiveKit helpers so tracks are not unpublished mid-publish
+      await room.localParticipant.setMicrophoneEnabled(true);
+      if (video) {
+        try { await room.localParticipant.setCameraEnabled(true); } catch (e) {
+          console.warn('camera failed', e);
+        }
       }
 
-      // Pull remote several times so late tracks are caught
-      [200, 600, 1500, 3000].forEach(ms => setTimeout(refresh, ms));
+      // Build local stream from published tracks for preview
+      const local = new MediaStream();
+      room.localParticipant.trackPublications.forEach(pub => {
+        if (pub.track) local.addTrack(pub.track.mediaStreamTrack);
+      });
+      setLocalStream(local);
+      localStreamRef.current = local;
+
+      [300, 800, 1800, 3500].forEach(ms => setTimeout(refresh, ms));
     } finally {
       connectingRef.current = false;
     }
