@@ -25,7 +25,7 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL || '';
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || '';
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '';
 
-app.get('/api/livekit-token', (req, res) => {
+app.get('/api/livekit-token', async (req, res) => {
   const room = String(req.query.room || '').trim();
   const identity = String(req.query.identity || '').trim();
   if (!room || !identity) return res.json({ error: 'room and identity required' });
@@ -36,7 +36,7 @@ app.get('/api/livekit-token', (req, res) => {
     const { AccessToken } = require('livekit-server-sdk');
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
     at.addGrant({ roomJoin: true, room, canPublish: true, canSubscribe: true });
-    const token = at.toJwt();
+    const token = await at.toJwt();
     res.json({ token, url: LIVEKIT_URL });
   } catch (e) {
     res.json({ error: 'token failed', detail: String(e) });
