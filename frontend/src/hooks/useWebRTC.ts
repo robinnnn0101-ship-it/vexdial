@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { Room, RoomEvent, Track } from 'livekit-client';
 
 const SIGNALING = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
 
@@ -33,38 +34,34 @@ export function useWebRTC(myAddress: string | null) {
   const [connected, setConnected] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const roomRef = useRef<Room | null>(null);
   const pendingOffer = useRef<any>(null);
-  const pendingCands = useRef<RTCIceCandidateInit[]>([]);
   const callIdRef = useRef('');
   const ringInterval = useRef<any>(null);
   const remoteAddrRef = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const remoteAccumRef = useRef<MediaStream>(new MediaStream());
 
   const stopRing = () => {
     if (ringInterval.current) clearInterval(ringInterval.current);
     ringInterval.current = null;
   };
 
-  const cleanup = () => {
+  const cleanup = async () => {
     stopRing();
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
+    if (roomRef.current) {
+      try { await roomRef.current.disconnect(); } catch {}
+      roomRef.current = null;
     }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
     }
-    remoteAccumRef.current = new MediaStream();
     setLocalStream(null);
     setRemoteStream(null);
     setStatus('idle');
     setRemoteAddress(null);
     setCallStart(null);
     pendingOffer.current = null;
-    pendingCands.current = [];
   };
 
   useEffect(() => {
@@ -97,10 +94,7 @@ export function useWebRTC(myAddress: string | null) {
       } catch {}
     };
 
-    socket.on('connect', () => {
-      setConnected(true);
-      register();
-    });
+    socket.on('connect', () => { setConnected(true); register(); });
     socket.on('disconnect', () => setConnected(false));
     socket.on('reconnect', register);
     socket.on('registered', () => setConnected(true));
@@ -119,30 +113,10 @@ export function useWebRTC(myAddress: string | null) {
       ringInterval.current = setInterval(() => playRingtone(), 1400);
     });
 
-    socket.on('call-answered', async ({ answer }) => {
+    socket.on('call-answered', async () => {
       stopRing();
-      if (!pcRef.current || !answer) return;
-      try {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answer));
-        setStatus('connected');
-        setCallStart(Date.now());
-        for (const c of pendingCands.current) {
-          try { await pcRef.current!.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-        }
-        pendingCands.current = [];
-      } catch (e) {
-        console.error('setRemoteDescription failed', e);
-      }
-    });
-
-    socket.on('ice-candidate', async ({ candidate }) => {
-      if (!candidate) return;
-      const pc = pcRef.current;
-      if (pc && pc.remoteDescription) {
-        try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) { console.warn('ice add failed', e); }
-      } else {
-        pendingCands.current.push(candidate);
-      }
+      setStatus('connected');
+      setCallStart(Date.now());
     });
 
     socket.on('call-error', ({ error }) => {
@@ -181,15 +155,9 @@ export function useWebRTC(myAddress: string | null) {
 
   const getStream = async (video: boolean) => {
     const constraints: MediaStreamConstraints = {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     };
-    if (video) {
-      constraints.video = { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' };
-    }
+    if (video) constraints.video = { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' };
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       stream.getAudioTracks().forEach(t => { t.enabled = true; });
@@ -208,64 +176,43 @@ export function useWebRTC(myAddress: string | null) {
     }
   };
 
-  const makePC = (stream: MediaStream) => {
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
-        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-      ],
-    });
-    pcRef.current = pc;
+  const connectLiveKit = async (roomName: string, identity: string, video: boolean) => {
+    const res = await fetch(`${SIGNALING}/api/livekit-token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(identity)}`);
+    const data = await res.json();
+    if (data.error || !data.token || !data.url) throw new Error(data.error || 'No LiveKit token');
 
-    // Add tracks and force sendrecv
-    stream.getTracks().forEach(track => {
-      track.enabled = true;
-      const sender = pc.addTrack(track, stream);
-      // Ensure direction is sendrecv
-      const transceiver = pc.getTransceivers().find(t => t.sender === sender);
-      if (transceiver) transceiver.direction = 'sendrecv';
-    });
+    const room = new Room();
+    roomRef.current = room;
 
-    remoteAccumRef.current = new MediaStream();
-
-    pc.ontrack = (event) => {
-      const track = event.track;
-      if (!track) return;
-      track.enabled = true;
-      if (!remoteAccumRef.current.getTracks().some(t => t.id === track.id)) {
-        remoteAccumRef.current.addTrack(track);
-      }
-      // Force update
-      setRemoteStream(new MediaStream(remoteAccumRef.current.getTracks()));
-      setTimeout(() => {
-        setRemoteStream(new MediaStream(remoteAccumRef.current.getTracks()));
-      }, 300);
-    };
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate && socketRef.current && remoteAddrRef.current) {
-        socketRef.current.emit('ice-candidate', {
-          to: remoteAddrRef.current,
-          from: myAddress,
-          candidate: e.candidate,
-          callId: callIdRef.current,
+    room.on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === Track.Kind.Audio || track.kind === Track.Kind.Video) {
+        const remote = new MediaStream();
+        room.remoteParticipants.forEach(p => {
+          p.trackPublications.forEach(pub => {
+            if (pub.track) remote.addTrack(pub.track.mediaStreamTrack);
+          });
         });
+        setRemoteStream(remote);
       }
-    };
+    });
 
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'connected') {
-        setStatus('connected');
-      }
-    };
+    room.on(RoomEvent.TrackUnsubscribed, () => {
+      const remote = new MediaStream();
+      room.remoteParticipants.forEach(p => {
+        p.trackPublications.forEach(pub => {
+          if (pub.track) remote.addTrack(pub.track.mediaStreamTrack);
+        });
+      });
+      setRemoteStream(remote.getTracks().length ? remote : null);
+    });
 
-    return pc;
+    await room.connect(data.url, data.token);
+
+    const stream = await getStream(video);
+    setLocalStream(stream);
+    for (const track of stream.getTracks()) {
+      await room.localParticipant.publishTrack(track);
+    }
   };
 
   const startCall = async (target: string, withVideo = false) => {
@@ -285,20 +232,15 @@ export function useWebRTC(myAddress: string | null) {
     ringInterval.current = setInterval(() => playRingtone(), 1600);
 
     try {
-      const stream = await getStream(withVideo);
-      setLocalStream(stream);
-      const pc = makePC(stream);
-
-      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-      await pc.setLocalDescription(offer);
-
       const cid = [myAddress.trim(), cleanTarget].sort().join('_');
       callIdRef.current = cid;
+
+      await connectLiveKit(cid, myAddress.trim(), withVideo);
 
       socketRef.current.emit('call-offer', {
         to: cleanTarget,
         from: myAddress.trim(),
-        offer,
+        offer: { type: 'livekit', room: cid },
         callId: cid,
       });
       socketRef.current.emit('join-room', cid);
@@ -306,36 +248,25 @@ export function useWebRTC(myAddress: string | null) {
       console.error(err);
       stopRing();
       cleanup();
-      alert('Failed to start call. Allow mic/camera permission.');
+      alert('Failed to start call. Check LiveKit config and permissions.');
     }
   };
 
   const acceptCall = async () => {
     stopRing();
-    if (!pendingOffer.current || !remoteAddress) return;
+    if (!remoteAddress || !callIdRef.current) return;
 
     try {
-      const isVideo = String(pendingOffer.current.sdp || '').includes('m=video');
-      const stream = await getStream(isVideo);
-      setLocalStream(stream);
-      const pc = makePC(stream);
-
-      await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.current));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      const isVideo = true;
+      await connectLiveKit(callIdRef.current, myAddress!.trim(), isVideo);
 
       socketRef.current?.emit('call-answer', {
         to: remoteAddress,
         from: myAddress,
-        answer,
+        answer: { type: 'livekit' },
         callId: callIdRef.current,
       });
       socketRef.current?.emit('join-room', callIdRef.current);
-
-      for (const c of pendingCands.current) {
-        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-      }
-      pendingCands.current = [];
 
       setStatus('connected');
       setCallStart(Date.now());
@@ -358,22 +289,23 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const toggleMute = () => {
-    localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = muted; });
-    setMuted(!muted);
+    const next = !muted;
+    localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !next; });
+    if (roomRef.current) roomRef.current.localParticipant.setMicrophoneEnabled(!next);
+    setMuted(next);
   };
 
   const toggleCamera = () => {
-    localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = cameraOff; });
-    setCameraOff(!cameraOff);
+    const next = !cameraOff;
+    localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = !next; });
+    if (roomRef.current) roomRef.current.localParticipant.setCameraEnabled(!next);
+    setCameraOff(next);
   };
 
   const startScreenShare = async () => {
     try {
-      const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'video');
-      if (sender && screen.getVideoTracks()[0]) {
-        await sender.replaceTrack(screen.getVideoTracks()[0]);
-      }
+      if (!roomRef.current) return;
+      await roomRef.current.localParticipant.setScreenShareEnabled(true);
     } catch {}
   };
 
