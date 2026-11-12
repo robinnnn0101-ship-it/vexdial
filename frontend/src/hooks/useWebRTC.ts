@@ -41,6 +41,7 @@ export function useWebRTC(myAddress: string | null) {
   const remoteAddrRef = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const connectingRef = useRef(false);
+  const isVideoCallRef = useRef(false);
 
   const stopRing = () => {
     if (ringInterval.current) clearInterval(ringInterval.current);
@@ -115,6 +116,7 @@ export function useWebRTC(myAddress: string | null) {
       remoteAddrRef.current = from;
       callIdRef.current = callId;
       pendingOffer.current = offer;
+      isVideoCallRef.current = !!(offer && offer.video);
       setStatus('ringing');
       stopRing();
       ringInterval.current = setInterval(() => playRingtone(), 1400);
@@ -257,7 +259,7 @@ export function useWebRTC(myAddress: string | null) {
       socketRef.current.emit('call-offer', {
         to: cleanTarget,
         from: myAddress.trim(),
-        offer: { type: 'livekit', room: cid },
+        offer: { type: 'livekit', room: cid, video: withVideo },
         callId: cid,
       });
       socketRef.current.emit('join-room', cid);
@@ -274,8 +276,8 @@ export function useWebRTC(myAddress: string | null) {
     if (!remoteAddress || !callIdRef.current || !myAddress) return;
 
     try {
-      // Prefer audio first so mobile permission issues don't kill the call
-      await connectLiveKit(callIdRef.current, myAddress.trim(), false);
+      const wantVideo = isVideoCallRef.current;
+      await connectLiveKit(callIdRef.current, myAddress.trim(), wantVideo);
 
       socketRef.current?.emit('call-answer', {
         to: remoteAddress,
