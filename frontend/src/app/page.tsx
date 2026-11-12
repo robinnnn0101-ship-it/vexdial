@@ -480,6 +480,17 @@ export default function Home() {
                     <div className="flex gap-1 shrink-0">
                       <button onClick={() => navigator.clipboard.writeText(n.address)} className="text-xs px-2 py-1 bg-white/10 rounded">Copy</button>
                       <button onClick={() => { setTarget(n.address); setTab('dial'); }} className="text-xs px-2 py-1 bg-cyan-600 rounded">Call</button>
+                      <button onClick={async () => {
+                        if (!confirm('Delete ' + n.name + '?')) return;
+                        const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+                        const r = await fetch(`${base}/api/names/${encodeURIComponent(n.name)}`, {
+                          method: 'DELETE',
+                          headers: { 'x-admin': myAddress || '' }
+                        });
+                        const d = await r.json();
+                        alert(d.ok ? 'Deleted' : d.error);
+                        if (d.ok) loadNames();
+                      }} className="text-xs px-2 py-1 bg-red-600 rounded">Del</button>
                     </div>
                   </div>
                 );
