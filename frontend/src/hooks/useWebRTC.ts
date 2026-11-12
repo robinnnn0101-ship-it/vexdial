@@ -40,6 +40,7 @@ export function useWebRTC(myAddress: string | null) {
   const ringInterval = useRef<any>(null);
   const remoteAddrRef = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const connectingRef = useRef(false);
 
   const stopRing = () => {
     if (ringInterval.current) clearInterval(ringInterval.current);
@@ -47,6 +48,7 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const cleanup = async () => {
+    if (connectingRef.current) return;
     stopRing();
     if (roomRef.current) {
       try { await roomRef.current.disconnect(); } catch {}
@@ -174,6 +176,8 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const connectLiveKit = async (roomName: string, identity: string, video: boolean) => {
+    connectingRef.current = true;
+    try {
     const url = `${SIGNALING}/api/livekit-token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(identity)}`;
     console.log('Fetching token from', url);
     const res = await fetch(url);
@@ -181,7 +185,6 @@ export function useWebRTC(myAddress: string | null) {
     if (data.error || !data.token || !data.url) throw new Error((data.error || 'No LiveKit token') + ' | url=' + SIGNALING);
 
     const room = new Room();
-    roomRef.current = room;
 
     room.on(RoomEvent.TrackSubscribed, (track) => {
       if (track.kind === Track.Kind.Audio || track.kind === Track.Kind.Video) {
@@ -206,11 +209,15 @@ export function useWebRTC(myAddress: string | null) {
     });
 
     await room.connect(data.url, data.token);
+    roomRef.current = room;
 
     const stream = await getStream(video);
     setLocalStream(stream);
     for (const track of stream.getTracks()) {
       await room.localParticipant.publishTrack(track);
+    }
+    } finally {
+      connectingRef.current = false;
     }
   };
 
