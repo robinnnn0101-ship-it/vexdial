@@ -43,7 +43,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!contacts.length) return;
-    const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+    const base = 'https://vexdial-production.up.railway.app';
     contacts.forEach(async (c) => {
       try {
         const r = await fetch(`${base}/api/online/${encodeURIComponent(c.address)}`);
@@ -57,7 +57,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!myAddress) return;
-    const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+    const base = 'https://vexdial-production.up.railway.app';
     fetch(`${base}/api/names`).then(r => r.json()).then(d => {
       const list = d.names || [];
       const mine = list.find((n: any) => n.address === myAddress);
@@ -114,7 +114,7 @@ export default function Home() {
     const t = input.trim();
     if (!t.endsWith('.vex')) return t;
     try {
-      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+      const base = 'https://vexdial-production.up.railway.app';
       const r = await fetch(`${base}/api/names/${encodeURIComponent(t.toLowerCase())}`);
       const data = await r.json();
       return data.address || t;
@@ -124,7 +124,7 @@ export default function Home() {
   const call = async (video: boolean) => {
     if (!target.trim()) return alert('Enter address or name');
     const addr = await resolve(target);
-    if (addr === target.trim() && target.endsWith('.vex')) return alert('Name not found');
+    if (!addr || addr === target.trim()) return alert('Name not found. Check spelling or register it first.');
     webrtc.startCall(addr, video);
   };
 
@@ -149,7 +149,7 @@ export default function Home() {
 
   const loadNames = async () => {
     try {
-      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+      const base = 'https://vexdial-production.up.railway.app';
       const r = await fetch(`${base}/api/names`);
       const data = await r.json();
       setNamesList(Array.isArray(data) ? data : data.names || []);
@@ -177,7 +177,7 @@ export default function Home() {
   const checkOnline = async () => {
     if (!target.trim()) return;
     try {
-      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+      const base = 'https://vexdial-production.up.railway.app';
       const r = await fetch(`${base}/api/online/${encodeURIComponent(target.trim())}`);
       const data = await r.json();
       setOnlineStatus(data.online ? 'online' : 'offline');
@@ -496,7 +496,7 @@ export default function Home() {
                       <button onClick={() => { setTarget(n.address); setTab('dial'); }} className="text-xs px-2 py-1 bg-cyan-600 rounded">Call</button>
                       <button onClick={async () => {
                         if (!confirm('Delete ' + n.name + '?')) return;
-                        const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+                        const base = 'https://vexdial-production.up.railway.app';
                         const r = await fetch(`${base}/api/names/${encodeURIComponent(n.name)}`, {
                           method: 'DELETE',
                           headers: { 'x-admin': myAddress || '' }
@@ -515,7 +515,7 @@ export default function Home() {
               <button onClick={async () => {
                 const name = prompt('Name (e.g. robin.vex)');
                 if (!name || !myAddress) return;
-                const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+                const base = 'https://vexdial-production.up.railway.app';
                 const r = await fetch(`${base}/api/names`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, address: myAddress }) });
                 const data = await r.json();
                 alert(data.ok ? 'Registered' : data.error);
@@ -524,7 +524,7 @@ export default function Home() {
               <button onClick={async () => {
                 const name = prompt('Premium name to request (e.g. elon.vex)');
                 if (!name || !myAddress) return;
-                const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+                const base = 'https://vexdial-production.up.railway.app';
                 const r = await fetch(`${base}/api/names/request`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, address: myAddress }) });
                 const data = await r.json();
                 alert(data.message || data.error || 'Sent');
