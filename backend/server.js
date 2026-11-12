@@ -3,7 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const fs = require('fs');
-const NAMES_FILE = '/tmp/vex-names.json';
+const NAMES_FILE = process.env.NAMES_FILE || '/tmp/vex-names.json';
 
 const app = express();
 app.use(cors());
@@ -93,7 +93,7 @@ app.post('/api/names', (req, res) => {
   if (!name.endsWith('.vex')) return res.json({ ok: false, error: 'must end with .vex' });
   if (names.has(name)) return res.json({ ok: false, error: 'name taken' });
   if (PREMIUM.has(name) && admin !== ADMIN) return res.json({ ok: false, error: 'premium name' });
-  // One name per wallet
+  // Permanent: one name per wallet, cannot be changed by user
   for (const [n, d] of names.entries()) {
     if (d.address === address) return res.json({ ok: false, error: 'this wallet already has a name' });
   }
