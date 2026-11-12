@@ -205,7 +205,7 @@ export default function Home() {
     setTimeout(() => setReactions(p => p.slice(1)), 2000);
   };
 
-  const navItems = ['dial','contacts','history','messages','names','about','privacy'];
+  const navItems = ['dial','contacts','history','messages','names','how','about','privacy'];
 
   if (!myAddress) return (
     <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-6">
@@ -315,7 +315,7 @@ export default function Home() {
         <nav className="space-y-1 flex-1">
           {navItems.map(t => (
             <button key={t} onClick={() => { setTab(t); setMenuOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm capitalize ${tab===t ? 'bg-cyan-600/20 text-cyan-400' : 'text-gray-400 hover:bg-white/5'}`}>
-              {t === 'contacts' ? 'VexBook' : t}
+              {t === 'contacts' ? 'VexBook' : t === 'how' ? 'How to Use' : t}
               {t === 'history' && missedCount > 0 && <span className="ml-2 text-xs bg-red-500 text-white px-1.5 rounded-full">{missedCount}</span>}
             </button>
           ))}
@@ -521,6 +521,36 @@ export default function Home() {
                 <button onClick={() => { setTarget(h.address); setTab('dial'); }} className="text-xs px-2 py-1 bg-white/10 rounded shrink-0">Call</button>
               </div>
             ))}
+          </div>
+        )}
+
+        
+        {tab === 'how' && (
+          <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10 space-y-4 text-sm">
+            <h2 className="font-medium text-lg">How to Use VexDial</h2>
+            <div>
+              <p className="text-cyan-400 font-medium mb-1">1. Connect</p>
+              <p className="text-gray-400">Connect Phantom, Solflare, or any wallet. Or paste any address (Solana, Ethereum, BNB, Bitcoin, etc.). Your address is your phone number.</p>
+            </div>
+            <div>
+              <p className="text-cyan-400 font-medium mb-1">2. Call anyone</p>
+              <p className="text-gray-400">Enter their wallet address or .vex name and tap VexVoice or VexVideo. Works across chains — Solana can call Ethereum, BNB, etc.</p>
+            </div>
+            <div>
+              <p className="text-cyan-400 font-medium mb-1">3. Get a .vex name</p>
+              <p className="text-gray-400">Go to Names and register one name per wallet (e.g. robin.vex). Others can call you by that name. Premium names are admin-controlled.</p>
+            </div>
+            <div>
+              <p className="text-cyan-400 font-medium mb-1">4. Message</p>
+              <p className="text-gray-400">Use the Messages tab to chat without a call. Messages are private between the two addresses.</p>
+            </div>
+            <div>
+              <p className="text-cyan-400 font-medium mb-1">5. Stay online</p>
+              <p className="text-gray-400">Keep the site open so others can reach you. Green dot = online. You can also share your QR code.</p>
+            </div>
+            <div className="pt-2 border-t border-white/10">
+              <p className="text-xs text-gray-500">Interchain · End-to-end encrypted · No phone numbers · Your wallet is your identity</p>
+            </div>
           </div>
         )}
 
