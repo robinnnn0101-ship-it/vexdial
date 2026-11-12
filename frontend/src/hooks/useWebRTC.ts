@@ -177,9 +177,11 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const connectLiveKit = async (roomName: string, identity: string, video: boolean) => {
-    const res = await fetch(`${SIGNALING}/api/livekit-token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(identity)}`);
+    const url = `${SIGNALING}/api/livekit-token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(identity)}`;
+    console.log('Fetching token from', url);
+    const res = await fetch(url);
     const data = await res.json();
-    if (data.error || !data.token || !data.url) throw new Error(data.error || 'No LiveKit token');
+    if (data.error || !data.token || !data.url) throw new Error((data.error || 'No LiveKit token') + ' | url=' + SIGNALING);
 
     const room = new Room();
     roomRef.current = room;
