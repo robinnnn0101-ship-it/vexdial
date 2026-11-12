@@ -32,6 +32,7 @@ export function useWebRTC(myAddress: string | null) {
   const [callStart, setCallStart] = useState<number | null>(null);
   const [chat, setChat] = useState<any[]>([]);
   const [connected, setConnected] = useState(false);
+  const [isVideoCall, setIsVideoCall] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const roomRef = useRef<Room | null>(null);
@@ -117,6 +118,7 @@ export function useWebRTC(myAddress: string | null) {
       callIdRef.current = callId;
       pendingOffer.current = offer;
       isVideoCallRef.current = !!(offer && offer.video);
+      setIsVideoCall(!!(offer && offer.video));
       setStatus('ringing');
       stopRing();
       ringInterval.current = setInterval(() => playRingtone(), 1400);
@@ -363,6 +365,7 @@ export function useWebRTC(myAddress: string | null) {
     chat,
     callStart,
     connected,
+    isVideoCall,
     startCall,
     acceptCall,
     rejectCall,
