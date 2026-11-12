@@ -363,7 +363,12 @@ export default function Home() {
                 <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded shrink-0">DTLS</span>
               </div>
               <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
-                <p className="text-xs text-gray-400 mb-2">Enter a wallet address or .vex name. Works across any chain.</p>
+                <div className="text-xs mb-3 space-y-1">
+                  <p className="text-cyan-400 font-medium">Interchain calls</p>
+                  <p className="text-gray-400">Phantom, MetaMask, Trust Wallet, Vex — any wallet.</p>
+                  <p className="text-gray-400">Solana can call Ethereum. BNB can call .vex. ETH can call Sol.</p>
+                  <p className="text-gray-500">Use an address or a .vex name.</p>
+                </div>
                 <p className="text-xs text-gray-500 mb-2">RECIPIENT ADDRESS OR DOMAIN</p>
                 <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Paste address or name.vex" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
                 {target.endsWith('.vex') && <p className="text-xs text-cyan-400 mb-2">Will resolve {target} to address</p>}
