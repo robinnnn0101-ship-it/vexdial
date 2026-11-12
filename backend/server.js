@@ -26,6 +26,8 @@ function loadNames() {
 }
 function saveNames() {
   try {
+    const dir = require('path').dirname(NAMES_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const obj = Object.fromEntries(names);
     fs.writeFileSync(NAMES_FILE, JSON.stringify(obj));
   } catch {}
