@@ -175,47 +175,47 @@ export function useWebRTC(myAddress: string | null) {
     }
   };
 
+  const buildRemote = (room: Room) => {
+    const remote = new MediaStream();
+    room.remoteParticipants.forEach(p => {
+      p.trackPublications.forEach(pub => {
+        if (pub.track && (pub.track.kind === Track.Kind.Audio || pub.track.kind === Track.Kind.Video)) {
+          remote.addTrack(pub.track.mediaStreamTrack);
+        }
+      });
+    });
+    setRemoteStream(remote.getTracks().length ? remote : null);
+  };
+
   const connectLiveKit = async (roomName: string, identity: string, video: boolean) => {
     connectingRef.current = true;
     try {
-    const url = `${SIGNALING}/api/livekit-token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(identity)}`;
-    console.log('Fetching token from', url);
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.error || !data.token || !data.url) throw new Error((data.error || 'No LiveKit token') + ' | url=' + SIGNALING);
+      const url = `${SIGNALING}/api/livekit-token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(identity)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.error || !data.token || !data.url) throw new Error((data.error || 'No LiveKit token') + ' | url=' + SIGNALING);
 
-    const room = new Room();
+      const room = new Room({ adaptiveStream: true, dynacast: true });
 
-    room.on(RoomEvent.TrackSubscribed, (track) => {
-      if (track.kind === Track.Kind.Audio || track.kind === Track.Kind.Video) {
-        const remote = new MediaStream();
-        room.remoteParticipants.forEach(p => {
-          p.trackPublications.forEach(pub => {
-            if (pub.track) remote.addTrack(pub.track.mediaStreamTrack);
-          });
-        });
-        setRemoteStream(remote);
+      const refresh = () => buildRemote(room);
+      room.on(RoomEvent.TrackSubscribed, refresh);
+      room.on(RoomEvent.TrackUnsubscribed, refresh);
+      room.on(RoomEvent.ParticipantConnected, refresh);
+      room.on(RoomEvent.TrackPublished, refresh);
+
+      await room.connect(data.url, data.token);
+      roomRef.current = room;
+
+      // Publish local tracks
+      const stream = await getStream(video);
+      setLocalStream(stream);
+      for (const track of stream.getTracks()) {
+        await room.localParticipant.publishTrack(track, { name: track.kind });
       }
-    });
 
-    room.on(RoomEvent.TrackUnsubscribed, () => {
-      const remote = new MediaStream();
-      room.remoteParticipants.forEach(p => {
-        p.trackPublications.forEach(pub => {
-          if (pub.track) remote.addTrack(pub.track.mediaStreamTrack);
-        });
-      });
-      setRemoteStream(remote.getTracks().length ? remote : null);
-    });
-
-    await room.connect(data.url, data.token);
-    roomRef.current = room;
-
-    const stream = await getStream(video);
-    setLocalStream(stream);
-    for (const track of stream.getTracks()) {
-      await room.localParticipant.publishTrack(track);
-    }
+      // Initial remote pull
+      setTimeout(refresh, 300);
+      setTimeout(refresh, 1200);
     } finally {
       connectingRef.current = false;
     }
