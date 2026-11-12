@@ -212,7 +212,8 @@ export default function Home() {
         <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-full bg-cyan-500/20 flex items-center justify-center mb-6 ring-animate">
           <span className="text-3xl sm:text-4xl">📞</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-semibold">Incoming Call</h2>
+        <h2 className="text-2xl sm:text-3xl font-semibold">Incoming {webrtc.isVideoCall ? 'Video' : 'Voice'} Call</h2>
+        <p className="text-cyan-400 text-sm mt-1">{webrtc.isVideoCall ? '📹 Video' : '📞 Voice'}</p>
         <p className="text-gray-400 text-sm mt-3 break-all">{webrtc.remoteAddress}</p>
         <div className="flex gap-3 mt-8">
           <button onClick={() => { logCall(webrtc.remoteAddress || '', 'incoming', 0); webrtc.acceptCall(); }} className="flex-1 py-4 bg-emerald-600 rounded-2xl font-medium">Accept</button>
