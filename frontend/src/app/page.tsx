@@ -210,7 +210,7 @@ export default function Home() {
   if (!myAddress) return (
     <div className="min-h-screen bg-[#05070a] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-lg text-center fade-in">
-        <img src="/logo.svg" alt="VexDial" className="w-24 h-24 mx-auto mb-4" />
+        <img src="/logo.jpg" alt="VexDial" className="w-24 h-24 mx-auto mb-4" />
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white">VexDial</h1>
         <p className="mt-2 text-cyan-400 text-sm tracking-widest">WALLET-TO-WALLET CALLING</p>
         <p className="mt-4 text-gray-400 text-sm max-w-md mx-auto">Call, message, and video chat any wallet address. Works across Solana, Ethereum, BNB, ATOM, and .vex names. End-to-end encrypted. Non-custodial.</p>
@@ -307,7 +307,7 @@ export default function Home() {
       <aside className={`md:w-56 bg-[#0a0d12] border-b md:border-b-0 md:border-r border-white/10 p-3 md:p-4 flex flex-col ${menuOpen ? 'block' : 'hidden md:flex'}`}>
         <div className="flex items-center justify-between md:justify-start gap-2 mb-4 md:mb-8">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="V" className="w-7 h-7" />
+            <img src="/logo.jpg" alt="V" className="w-7 h-7" />
             <p className="font-bold text-cyan-400">VexDial</p>
           </div>
           <button onClick={() => setMenuOpen(false)} className="md:hidden text-gray-400">✕</button>
