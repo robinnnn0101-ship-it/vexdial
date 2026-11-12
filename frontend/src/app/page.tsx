@@ -430,7 +430,21 @@ export default function Home() {
                     <p className="text-xs text-gray-500 font-mono">{c.address.slice(0,10)}…</p>
                   </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => navigator.clipboard.writeText(c.address)} className="text-xs px-2 py-1 bg-white/10 rounded">Copy</button>
+                  <button onClick={() => {
+                    const name = prompt('New name', c.name || '');
+                    if (name === null) return;
+                    const next = contacts.map(x => x.address === c.address ? { ...x, name } : x);
+                    setContacts(next);
+                    localStorage.setItem('vexdial-contacts', JSON.stringify(next));
+                  }} className="text-xs px-2 py-1 bg-white/10 rounded">Edit</button>
+                  <button onClick={() => {
+                    if (!confirm('Delete contact?')) return;
+                    const next = contacts.filter(x => x.address !== c.address);
+                    setContacts(next);
+                    localStorage.setItem('vexdial-contacts', JSON.stringify(next));
+                  }} className="text-xs px-2 py-1 bg-red-600 rounded">Del</button>
                   <button onClick={() => { setTarget(c.address); setTab('messages'); }} className="text-xs px-2 py-1 bg-white/10 rounded">Msg</button>
                   <button onClick={() => { setTarget(c.address); setTab('dial'); }} className="text-xs px-2 py-1 bg-white/10 rounded">Call</button>
                 </div>
