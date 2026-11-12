@@ -2,6 +2,8 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const fs = require('fs');
+const NAMES_FILE = '/tmp/vex-names.json';
 
 const app = express();
 app.use(cors());
@@ -13,6 +15,23 @@ const presence = new Map();
 const offlineMessages = new Map();
 const missedCalls = new Map();
 const names = new Map();
+
+function loadNames() {
+  try {
+    if (fs.existsSync(NAMES_FILE)) {
+      const data = JSON.parse(fs.readFileSync(NAMES_FILE, 'utf8'));
+      for (const [k, v] of Object.entries(data)) names.set(k, v);
+    }
+  } catch {}
+}
+function saveNames() {
+  try {
+    const obj = Object.fromEntries(names);
+    fs.writeFileSync(NAMES_FILE, JSON.stringify(obj));
+  } catch {}
+}
+loadNames();
+
 const ADMIN = process.env.ADMIN_ADDRESS || '';
 const PREMIUM = new Set(['elon.vex','trump.vex','binance.vex','solana.vex','vexlore.vex','vexdial.vex']);
 
@@ -79,6 +98,7 @@ app.post('/api/names', (req, res) => {
     if (d.address === address) return res.json({ ok: false, error: 'this wallet already has a name' });
   }
   names.set(name, { address, registered: Date.now() });
+  saveNames();
   res.json({ ok: true, name, address });
 });
 
@@ -87,6 +107,7 @@ app.delete('/api/names/:name', (req, res) => {
   if (ADMIN && admin !== ADMIN) return res.json({ ok: false, error: 'admin only' });
   const name = decodeURIComponent(req.params.name).toLowerCase().trim();
   names.delete(name);
+  saveNames();
   res.json({ ok: true });
 });
 
