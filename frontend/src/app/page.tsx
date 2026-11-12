@@ -114,7 +114,7 @@ export default function Home() {
     const t = input.trim();
     if (!t.endsWith('.vex')) return t;
     try {
-      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
+      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
       const r = await fetch(`${base}/api/names/${encodeURIComponent(t.toLowerCase())}`);
       const data = await r.json();
       return data.address || t;
@@ -128,10 +128,12 @@ export default function Home() {
     webrtc.startCall(addr, video);
   };
 
-  const addContact = () => {
-    const addr = prompt('Wallet address');
-    if (!addr) return;
-    const name = prompt('Name') || '';
+  const addContact = async () => {
+    const input = prompt('Wallet address or name.vex');
+    if (!input) return;
+    const addr = await resolve(input);
+    if (addr === input.trim() && input.endsWith('.vex')) return alert('Name not found');
+    const name = prompt('Nickname') || (input.endsWith('.vex') ? input : '');
     const next = [{ address: addr.trim(), name }, ...contacts.filter(c => c.address !== addr.trim())];
     setContacts(next);
     localStorage.setItem('vexdial-contacts', JSON.stringify(next));
@@ -147,7 +149,7 @@ export default function Home() {
 
   const loadNames = async () => {
     try {
-      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
+      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
       const r = await fetch(`${base}/api/names`);
       const data = await r.json();
       setNamesList(Array.isArray(data) ? data : data.names || []);
@@ -175,7 +177,7 @@ export default function Home() {
   const checkOnline = async () => {
     if (!target.trim()) return;
     try {
-      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
+      const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
       const r = await fetch(`${base}/api/online/${encodeURIComponent(target.trim())}`);
       const data = await r.json();
       setOnlineStatus(data.online ? 'online' : 'offline');
@@ -363,6 +365,7 @@ export default function Home() {
               <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
                 <p className="text-xs text-gray-500 mb-2">RECIPIENT ADDRESS OR DOMAIN</p>
                 <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Paste address or name.vex" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
+                {target.endsWith('.vex') && <p className="text-xs text-cyan-400 mb-2">Will resolve {target} to address</p>}
                 <div className="flex items-center gap-3 mb-4">
                   <button onClick={checkOnline} className="px-3 py-1.5 text-xs bg-white/10 rounded-lg">Check</button>
                   {onlineStatus !== 'unknown' && <span className={`text-xs ${onlineStatus==='online'?'text-emerald-400':'text-red-400'}`}>{onlineStatus}</span>}
