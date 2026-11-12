@@ -154,25 +154,22 @@ export function useWebRTC(myAddress: string | null) {
   }, [myAddress]);
 
   const getStream = async (video: boolean) => {
-    const constraints: MediaStreamConstraints = {
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    };
-    if (video) constraints.video = { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' };
     try {
+      const constraints: MediaStreamConstraints = {
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      };
+      if (video) constraints.video = { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      stream.getAudioTracks().forEach(t => { t.enabled = true; });
-      if (video) stream.getVideoTracks().forEach(t => { t.enabled = true; });
       localStreamRef.current = stream;
       return stream;
     } catch (err) {
-      if (video) {
-        try {
-          const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true });
-          localStreamRef.current = audioOnly;
-          return audioOnly;
-        } catch {}
+      try {
+        const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true });
+        localStreamRef.current = audioOnly;
+        return audioOnly;
+      } catch (e2) {
+        throw new Error('Mic permission denied. Allow microphone and try again.');
       }
-      throw err;
     }
   };
 
@@ -256,11 +253,11 @@ export function useWebRTC(myAddress: string | null) {
 
   const acceptCall = async () => {
     stopRing();
-    if (!remoteAddress || !callIdRef.current) return;
+    if (!remoteAddress || !callIdRef.current || !myAddress) return;
 
     try {
-      const isVideo = true;
-      await connectLiveKit(callIdRef.current, myAddress!.trim(), isVideo);
+      // Prefer audio first so mobile permission issues don't kill the call
+      await connectLiveKit(callIdRef.current, myAddress.trim(), false);
 
       socketRef.current?.emit('call-answer', {
         to: remoteAddress,
