@@ -22,6 +22,7 @@ export default function Home() {
   const [msgSearch, setMsgSearch] = useState('');
   const [missedCount, setMissedCount] = useState(0);
   const [namesList, setNamesList] = useState<any[]>([]);
+  const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const localRef = useRef<HTMLVideoElement>(null);
@@ -37,6 +38,19 @@ export default function Home() {
     const hist = JSON.parse(localStorage.getItem('vexdial-history') || '[]');
     setMissedCount(hist.filter((h: any) => h.type === 'missed').length);
   }, [history]);
+
+  useEffect(() => {
+    if (!contacts.length) return;
+    const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+    contacts.forEach(async (c) => {
+      try {
+        const r = await fetch(`${base}/api/online/${encodeURIComponent(c.address)}`);
+        const d = await r.json();
+        setOnlineMap(m => ({ ...m, [c.address]: !!d.online }));
+      } catch {}
+    });
+  }, [contacts]);
+
 
   useEffect(() => {
     if (webrtc.localStream && localRef.current) localRef.current.srcObject = webrtc.localStream;
@@ -339,8 +353,8 @@ export default function Home() {
                   {onlineStatus !== 'unknown' && <span className={`text-xs ${onlineStatus==='online'?'text-emerald-400':'text-red-400'}`}>{onlineStatus}</span>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => call(false)} className="py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium text-sm">VexVoice</button>
-                  <button onClick={() => call(true)} className="py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium text-sm">VexVideo</button>
+                  <button onClick={() => call(false)} className="py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium text-sm">📞 VexVoice</button>
+                  <button onClick={() => call(true)} className="py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium text-sm">📹 VexVideo</button>
                 </div>
               </div>
             </div>
@@ -348,17 +362,28 @@ export default function Home() {
               <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-sm font-medium">Your Address</p>
-                  <button onClick={copyAddress} className="text-xs px-2 py-1 bg-white/10 rounded">{copied ? 'Copied' : 'Copy'}</button>
+                  <div className="flex gap-1">
+                    <button onClick={copyAddress} className="text-xs px-2 py-1 bg-white/10 rounded">{copied ? 'Copied' : 'Copy'}</button>
+                    <button onClick={() => myAddress && navigator.share?.({ title: 'Call me on VexDial', text: myAddress })} className="text-xs px-2 py-1 bg-white/10 rounded">Share</button>
+                  </div>
                 </div>
-                <p className="font-mono text-xs break-all text-gray-300">{myAddress}</p>
+                <p className="font-mono text-xs break-all text-gray-300 mb-3">{myAddress}</p>
+                {myAddress && (
+                  <div className="flex justify-center">
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(myAddress)}`} alt="QR" className="rounded-lg bg-white p-1" />
+                  </div>
+                )}
               </div>
               <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
                 <p className="text-sm font-medium mb-2">VexBook</p>
                 {contacts.length === 0 && <p className="text-xs text-gray-500">No contacts yet</p>}
                 {contacts.slice(0,3).map(c => (
-                  <button key={c.address} onClick={() => setTarget(c.address)} className="w-full text-left py-2 text-xs border-b border-white/5 last:border-0 hover:bg-white/5 rounded">
-                    <p>{c.name || 'Unnamed'}</p>
-                    <p className="text-gray-500 font-mono">{c.address.slice(0,10)}…</p>
+                  <button key={c.address} onClick={() => setTarget(c.address)} className="w-full text-left py-2 text-xs border-b border-white/5 last:border-0 hover:bg-white/5 rounded flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-gray-500 shrink-0" id={`dot-${c.address.slice(0,6)}`} />
+                    <div>
+                      <p>{c.name || 'Unnamed'}</p>
+                      <p className="text-gray-500 font-mono">{c.address.slice(0,10)}…</p>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -378,9 +403,12 @@ export default function Home() {
             {contacts.length === 0 && <p className="text-sm text-gray-500">No contacts yet</p>}
             {contacts.map(c => (
               <div key={c.address} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
-                <div className="min-w-0">
-                  <p className="text-sm truncate">{c.name || 'Unnamed'}</p>
-                  <p className="text-xs text-gray-500 font-mono">{c.address.slice(0,10)}…</p>
+                <div className="min-w-0 flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${onlineMap[c.address] ? 'bg-emerald-400' : 'bg-red-500'}`} />
+                  <div>
+                    <p className="text-sm truncate">{c.name || 'Unnamed'}</p>
+                    <p className="text-xs text-gray-500 font-mono">{c.address.slice(0,10)}…</p>
+                  </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => { setTarget(c.address); setTab('messages'); }} className="text-xs px-2 py-1 bg-white/10 rounded">Msg</button>
@@ -404,6 +432,7 @@ export default function Home() {
                 <div key={i} className={`flex ${m.from === myAddress ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] px-3 py-2 rounded-xl ${m.from === myAddress ? 'bg-cyan-600' : 'bg-white/10'}`}>
                     <p>{m.text}</p>
+                    {m.from === myAddress && <p className="text-[10px] opacity-70 mt-0.5">{m.status || 'sent'}</p>}
                   </div>
                 </div>
               ))}
