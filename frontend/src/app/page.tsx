@@ -363,6 +363,7 @@ export default function Home() {
                 <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded shrink-0">DTLS</span>
               </div>
               <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
+                <p className="text-xs text-gray-400 mb-2">Enter a wallet address or .vex name. Works across any chain.</p>
                 <p className="text-xs text-gray-500 mb-2">RECIPIENT ADDRESS OR DOMAIN</p>
                 <input value={target} onChange={e => { setTarget(e.target.value); setOnlineStatus('unknown'); }} placeholder="Paste address or name.vex" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 mb-3 text-sm" />
                 {target.endsWith('.vex') && <p className="text-xs text-cyan-400 mb-2">Will resolve {target} to address</p>}
@@ -415,6 +416,7 @@ export default function Home() {
           <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-medium">VexBook</h2>
+            <p className="text-xs text-gray-400 mb-3">Save addresses with names. Green = online, red = offline. Call or message directly.</p>
               <div className="flex gap-2">
                 <button onClick={exportContacts} className="text-xs px-3 py-1.5 bg-white/10 rounded-lg">Export</button>
                 <button onClick={addContact} className="text-xs px-3 py-1.5 bg-cyan-600 rounded-lg">Add</button>
@@ -455,7 +457,8 @@ export default function Home() {
 
         {tab === 'messages' && (
           <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
-            <h2 className="font-medium mb-4">Messages</h2>
+            <h2 className="font-medium mb-1">Messages</h2>
+            <p className="text-xs text-gray-400 mb-4">Private chat between two addresses. Enter address or .vex name.</p>
             <div className="flex gap-2 mb-3">
               <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" />
               <button onClick={addContact} className="px-3 py-2 bg-white/10 rounded-xl text-xs">Add</button>
@@ -542,7 +545,8 @@ export default function Home() {
 
         {tab === 'history' && (
           <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
-            <h2 className="font-medium mb-4">History</h2>
+            <h2 className="font-medium mb-1">History</h2>
+            <p className="text-xs text-gray-400 mb-4">Recent calls. Missed calls show in red. Tap Call to redial.</p>
             {history.length === 0 && <p className="text-sm text-gray-500">No calls yet</p>}
             {history.map((h,i) => (
               <div key={i} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
