@@ -23,6 +23,7 @@ export default function Home() {
   const [missedCount, setMissedCount] = useState(0);
   const [namesList, setNamesList] = useState<any[]>([]);
   const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
+  const [nameSearch, setNameSearch] = useState('');
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const localRef = useRef<HTMLVideoElement>(null);
@@ -50,6 +51,8 @@ export default function Home() {
       } catch {}
     });
   }, [contacts]);
+
+  useEffect(() => { if (tab === 'names') loadNames(); }, [tab]);
 
 
   useEffect(() => {
@@ -447,30 +450,44 @@ export default function Home() {
         {tab === 'names' && (
           <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
             <h2 className="font-medium mb-4">.vex Names</h2>
-            <button onClick={loadNames} className="w-full py-2 mb-3 bg-white/10 rounded-xl text-sm">Load Directory</button>
-            <div className="max-h-40 overflow-y-auto text-sm mb-3">
-              {namesList.map((n: any, i: number) => (
-                <div key={i} className="flex justify-between py-1 border-b border-white/5">
-                  <span className="text-cyan-400">{n.name}</span>
-                  <button onClick={() => { setTarget(n.address); setTab('dial'); }} className="text-xs px-2 py-0.5 bg-white/10 rounded">Call</button>
-                </div>
-              ))}
+            <input value={nameSearch} onChange={e => setNameSearch(e.target.value)} placeholder="Search names" className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm mb-3" />
+            <div className="max-h-48 overflow-y-auto text-sm mb-3 space-y-1">
+              {namesList.filter((n: any) => !nameSearch || n.name?.includes(nameSearch.toLowerCase())).map((n: any, i: number) => {
+                const premium = ['elon.vex','trump.vex','binance.vex','solana.vex','vexlore.vex','vexdial.vex'].includes(n.name);
+                return (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-white/5">
+                    <div className="min-w-0">
+                      <p className="text-cyan-400 truncate">{n.name} {premium && <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1 rounded">PREMIUM</span>}</p>
+                      <p className="text-xs text-gray-500 font-mono">{n.address?.slice(0,12)}…</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => navigator.clipboard.writeText(n.address)} className="text-xs px-2 py-1 bg-white/10 rounded">Copy</button>
+                      <button onClick={() => { setTarget(n.address); setTab('dial'); }} className="text-xs px-2 py-1 bg-cyan-600 rounded">Call</button>
+                    </div>
+                  </div>
+                );
+              })}
+              {namesList.length === 0 && <p className="text-xs text-gray-500">No names yet</p>}
             </div>
-            <form onSubmit={async e => {
-              e.preventDefault();
-              const name = prompt('Name (e.g. robin.vex)');
-              if (!name || !myAddress) return;
-              const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'http://localhost:3001';
-              const r = await fetch(`${base}/api/names`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, address: myAddress }),
-              });
-              const data = await r.json();
-              alert(data.ok ? 'Registered' : data.error);
-            }}>
-              <button className="w-full py-3 bg-cyan-600 rounded-xl font-medium text-sm">Register Name</button>
-            </form>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={async () => {
+                const name = prompt('Name (e.g. robin.vex)');
+                if (!name || !myAddress) return;
+                const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+                const r = await fetch(`${base}/api/names`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, address: myAddress }) });
+                const data = await r.json();
+                alert(data.ok ? 'Registered' : data.error);
+                if (data.ok) loadNames();
+              }} className="py-3 bg-cyan-600 rounded-xl font-medium text-sm">Register Name</button>
+              <button onClick={async () => {
+                const name = prompt('Premium name to request (e.g. elon.vex)');
+                if (!name || !myAddress) return;
+                const base = process.env.NEXT_PUBLIC_SIGNALING_URL || 'https://vexdial-production.up.railway.app';
+                const r = await fetch(`${base}/api/names/request`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, address: myAddress }) });
+                const data = await r.json();
+                alert(data.message || data.error || 'Sent');
+              }} className="py-3 bg-amber-600 rounded-xl font-medium text-sm">Request Premium</button>
+            </div>
           </div>
         )}
 
