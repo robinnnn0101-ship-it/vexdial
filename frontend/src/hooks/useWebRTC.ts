@@ -40,6 +40,7 @@ export function useWebRTC(myAddress: string | null) {
   const ringInterval = useRef<any>(null);
   const remoteAddrRef = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteAccumRef = useRef<MediaStream>(new MediaStream());
 
   const stopRing = () => {
     if (ringInterval.current) clearInterval(ringInterval.current);
@@ -56,6 +57,7 @@ export function useWebRTC(myAddress: string | null) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
     }
+    remoteAccumRef.current = new MediaStream();
     setLocalStream(null);
     setRemoteStream(null);
     setStatus('idle');
@@ -221,26 +223,29 @@ export function useWebRTC(myAddress: string | null) {
     });
     pcRef.current = pc;
 
+    // Add tracks and force sendrecv
     stream.getTracks().forEach(track => {
       track.enabled = true;
-      pc.addTrack(track, stream);
+      const sender = pc.addTrack(track, stream);
+      // Ensure direction is sendrecv
+      const transceiver = pc.getTransceivers().find(t => t.sender === sender);
+      if (transceiver) transceiver.direction = 'sendrecv';
     });
 
-    const remoteAccum = new MediaStream();
+    remoteAccumRef.current = new MediaStream();
+
     pc.ontrack = (event) => {
       const track = event.track;
       if (!track) return;
       track.enabled = true;
-      if (!remoteAccum.getTracks().some(t => t.id === track.id)) {
-        remoteAccum.addTrack(track);
+      if (!remoteAccumRef.current.getTracks().some(t => t.id === track.id)) {
+        remoteAccumRef.current.addTrack(track);
       }
-      remoteAccum.getTracks().forEach(t => { t.enabled = true; });
-      setRemoteStream(remoteAccum);
-
+      // Force update
+      setRemoteStream(new MediaStream(remoteAccumRef.current.getTracks()));
       setTimeout(() => {
-        remoteAccum.getTracks().forEach(t => { t.enabled = true; });
-        setRemoteStream(remoteAccum);
-      }, 200);
+        setRemoteStream(new MediaStream(remoteAccumRef.current.getTracks()));
+      }, 300);
     };
 
     pc.onicecandidate = (e) => {
