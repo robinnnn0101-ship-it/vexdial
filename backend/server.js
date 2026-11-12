@@ -86,6 +86,21 @@ app.delete('/api/names/:name', (req, res) => {
   res.json({ ok: true });
 });
 
+
+const nameRequests = [];
+app.post('/api/names/request', (req, res) => {
+  const name = String(req.body?.name || '').toLowerCase().trim();
+  const address = String(req.body?.address || '').trim();
+  if (!name || !address) return res.json({ ok: false, error: 'name and address required' });
+  nameRequests.push({ name, address, ts: Date.now() });
+  res.json({ ok: true, message: 'Request sent. Admin will review.' });
+});
+app.get('/api/names/requests', (req, res) => {
+  const admin = String(req.headers['x-admin'] || '');
+  if (ADMIN && admin !== ADMIN) return res.json({ error: 'admin only' });
+  res.json(nameRequests);
+});
+
 app.post('/api/register', (req, res) => {
   const address = String(req.body?.address || '').trim();
   if (!address) return res.json({ ok: false });
