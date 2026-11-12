@@ -480,7 +480,7 @@ export default function Home() {
 
         {tab === 'names' && (
           <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
-            <h2 className="font-medium mb-4">.vex Names</h2>
+            <h2 className="font-medium mb-1">.vex Public Directory</h2><p className="text-xs text-gray-500 mb-4">One permanent name per wallet. Search and call anyone.</p>
             <input value={nameSearch} onChange={e => setNameSearch(e.target.value)} placeholder="Search names" className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm mb-3" />
             <div className="max-h-48 overflow-y-auto text-sm mb-3 space-y-1">
               {namesList.filter((n: any) => !nameSearch || n.name?.includes(nameSearch.toLowerCase())).map((n: any, i: number) => {
