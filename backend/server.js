@@ -21,6 +21,29 @@ function getRoomId(a, b) { return [a, b].sort().join('_'); }
 app.get('/', (req, res) => res.json({ ok: true }));
 app.get('/health', (req, res) => res.json({ status: 'ok', online: presence.size }));
 
+const LIVEKIT_URL = process.env.LIVEKIT_URL || '';
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || '';
+const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '';
+
+app.get('/api/livekit-token', (req, res) => {
+  const room = String(req.query.room || '').trim();
+  const identity = String(req.query.identity || '').trim();
+  if (!room || !identity) return res.json({ error: 'room and identity required' });
+  if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !LIVEKIT_URL) {
+    return res.json({ error: 'LiveKit not configured on server' });
+  }
+  try {
+    const { AccessToken } = require('livekit-server-sdk');
+    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity });
+    at.addGrant({ roomJoin: true, room, canPublish: true, canSubscribe: true });
+    const token = at.toJwt();
+    res.json({ token, url: LIVEKIT_URL });
+  } catch (e) {
+    res.json({ error: 'token failed', detail: String(e) });
+  }
+});
+
+
 app.get('/api/online', (req, res) => {
   const list = Array.from(presence.keys());
   res.json({ count: list.length, addresses: list });
