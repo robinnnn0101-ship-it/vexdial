@@ -244,11 +244,11 @@ export function useWebRTC(myAddress: string | null) {
         callId: cid,
       });
       socketRef.current.emit('join-room', cid);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       stopRing();
       cleanup();
-      alert('Failed to start call. Check LiveKit config and permissions.');
+      alert('Failed: ' + (err?.message || String(err)));
     }
   };
 
