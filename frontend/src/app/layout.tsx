@@ -4,7 +4,7 @@ import { WalletProvider } from '../components/WalletProvider';
 export const metadata = {
   title: 'VexDial — Wallet to Wallet Encrypted Calls',
   description: 'Your Solana wallet is the phone number. Free E2E encrypted audio & video calls. Built by Vexlore.',
-  icons: { icon: '/logo.svg' },
+  icons: { icon: '/logo.jpg' },
 };
 
 export default function RootLayout({ children }) {
