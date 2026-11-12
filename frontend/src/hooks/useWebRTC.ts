@@ -273,10 +273,10 @@ export function useWebRTC(myAddress: string | null) {
       setStatus('connected');
       setCallStart(Date.now());
       pendingOffer.current = null;
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       cleanup();
-      alert('Failed to accept call');
+      alert('Accept failed: ' + (err?.message || String(err)));
     }
   };
 
