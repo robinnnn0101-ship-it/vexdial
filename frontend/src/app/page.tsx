@@ -60,9 +60,13 @@ export default function Home() {
       remoteRef.current.playsInline = true;
       remoteRef.current.play().catch(() => {});
     }
-    // Force track enable
     webrtc.remoteStream.getAudioTracks().forEach(t => { t.enabled = true; });
     webrtc.remoteStream.getVideoTracks().forEach(t => { t.enabled = true; });
+    // Extra force after short delay
+    setTimeout(() => {
+      if (audioRef.current) { audioRef.current.muted = false; audioRef.current.play().catch(()=>{}); }
+      if (remoteRef.current) { remoteRef.current.muted = false; remoteRef.current.play().catch(()=>{}); }
+    }, 500);
   }, [webrtc.remoteStream]);
 
   useEffect(() => {
