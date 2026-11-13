@@ -265,6 +265,9 @@ export default function Home() {
         <div>
           <span className="text-cyan-400 font-semibold">VexDial</span>
           <span className="ml-2 text-sm text-gray-400">{webrtc.status === 'calling' ? 'Calling…' : `${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')}`}</span>
+          <span className="ml-3 flex items-center gap-0.5" title="Signal">
+            {[1,2,3,4].map(i => <span key={i} className={`w-1 rounded-sm ${i <= (webrtc.quality||2) ? 'bg-emerald-400' : 'bg-white/20'}`} style={{height: 4+i*3}} />)}
+          </span>
         </div>
         <span className="text-xs text-gray-500 truncate max-w-[140px] sm:max-w-[220px]">{webrtc.remoteAddress}</span>
       </header>
@@ -552,6 +555,27 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        
+            {myAddress && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <p className="text-xs text-gray-500 mb-2">Premium requests (admin)</p>
+                <button onClick={async () => {
+                  const base = 'https://vexdial-production.up.railway.app';
+                  const r = await fetch(`${base}/api/names/requests`, { headers: { 'x-admin': myAddress } });
+                  const d = await r.json();
+                  if (d.error) return alert(d.error);
+                  const list = Array.isArray(d) ? d : [];
+                  if (!list.length) return alert('No requests');
+                  const pick = list[0];
+                  if (confirm('Approve ' + pick.name + ' for ' + pick.address.slice(0,8) + '?')) {
+                    await fetch(`${base}/api/names/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin': myAddress }, body: JSON.stringify(pick) });
+                    alert('Approved');
+                    loadNames();
+                  }
+                }} className="text-xs px-3 py-1.5 bg-amber-600 rounded">Review Requests</button>
+              </div>
+            )}
 
         {tab === 'history' && (
           <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
