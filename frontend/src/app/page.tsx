@@ -123,9 +123,14 @@ export default function Home() {
 
   const call = async (video: boolean) => {
     if (!target.trim()) return alert('Enter address or name');
-    const addr = await resolve(target);
-    if (!addr || addr === target.trim()) return alert('Name not found. Check spelling or register it first.');
-    webrtc.startCall(addr, video);
+    const t = target.trim();
+    if (t.endsWith('.vex')) {
+      const addr = await resolve(t);
+      if (!addr || addr === t) return alert('Name not found. Check spelling or register it first.');
+      webrtc.startCall(addr, video);
+    } else {
+      webrtc.startCall(t, video);
+    }
   };
 
   const addContact = async () => {
