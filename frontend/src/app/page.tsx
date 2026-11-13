@@ -26,6 +26,16 @@ export default function Home() {
   const [lastSeenMap, setLastSeenMap] = useState<Record<string, number>>({});
   const [nameSearch, setNameSearch] = useState('');
   const [myName, setMyName] = useState('');
+  
+  const detectChain = (addr: string) => {
+    if (!addr) return { chain: 'Unknown', icon: '🔗' };
+    if (addr.endsWith('.vex')) return { chain: '.vex Name', icon: '✨' };
+    if (addr.startsWith('0x') && addr.length === 42) return { chain: 'Ethereum / BNB', icon: '🦊' };
+    if (addr.startsWith('bc1') || addr.startsWith('1') || addr.startsWith('3')) return { chain: 'Bitcoin', icon: '₿' };
+    if (addr.length >= 32 && addr.length <= 44 && !addr.startsWith('0x')) return { chain: 'Solana', icon: '◎' };
+    return { chain: 'Wallet', icon: '🔗' };
+  };
+
   const ADMIN_ADDR = 'DdDw58qmGXu3vqaV77s3gBVwSDPA1YZ9TxMPvfidNfd3';
   const isAdmin = myAddress === ADMIN_ADDR;
   const [copied, setCopied] = useState(false);
@@ -254,6 +264,11 @@ export default function Home() {
         </div>
         <h2 className="text-2xl sm:text-3xl font-semibold">Incoming {webrtc.isVideoCall ? 'Video' : 'Voice'} Call</h2>
         <p className="text-cyan-400 text-sm mt-1">{webrtc.isVideoCall ? '📹 Video' : '📞 Voice'}</p>
+        {webrtc.remoteAddress && (() => {
+          const from = detectChain(webrtc.remoteAddress);
+          const to = detectChain(myAddress || '');
+          return <p className="text-xs text-gray-500 mt-2">{from.icon} {from.chain} → {to.icon} {to.chain}</p>;
+        })()}
         <p className="text-gray-400 text-sm mt-3 break-all">{webrtc.remoteAddress}</p>
         <div className="flex gap-3 mt-8">
           <button onClick={() => { logCall(webrtc.remoteAddress || '', 'incoming', 0); webrtc.acceptCall(); }} className="flex-1 py-4 bg-emerald-600 rounded-2xl font-medium">Accept</button>
@@ -274,6 +289,11 @@ export default function Home() {
           </span>
         </div>
         <span className="text-xs text-gray-500 truncate max-w-[140px] sm:max-w-[220px]">{webrtc.remoteAddress}</span>
+        {webrtc.remoteAddress && (() => {
+          const from = detectChain(myAddress || '');
+          const to = detectChain(webrtc.remoteAddress);
+          return <span className="text-[10px] text-cyan-400 ml-2">{from.icon}{from.chain.slice(0,3)} → {to.icon}{to.chain.slice(0,3)}</span>;
+        })()}
       </header>
       <div className="flex-1 relative p-3 sm:p-4">
         <audio ref={audioRef} autoPlay playsInline />
