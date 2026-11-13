@@ -73,7 +73,7 @@ app.get('/api/online', (req, res) => {
 app.get('/api/online/:address', (req, res) => {
   const addr = decodeURIComponent(req.params.address).trim();
   const p = presence.get(addr);
-  res.json({ online: !!p, status: p?.status || 'offline' });
+  res.json({ online: !!p, status: p?.status || 'offline', lastSeen: p?.lastSeen || null });
 });
 
 app.get('/api/names', (req, res) => {
