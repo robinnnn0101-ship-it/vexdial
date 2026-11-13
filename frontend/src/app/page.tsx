@@ -25,6 +25,8 @@ export default function Home() {
   const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
   const [nameSearch, setNameSearch] = useState('');
   const [myName, setMyName] = useState('');
+  const ADMIN_ADDR = 'DdDw58qmGXu3vqaV77s3gBVwSDPA1YZ9TxMPvfidNfd3';
+  const isAdmin = myAddress === ADMIN_ADDR;
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const localRef = useRef<HTMLVideoElement>(null);
@@ -517,7 +519,7 @@ export default function Home() {
                     <div className="flex gap-1 shrink-0">
                       <button onClick={() => navigator.clipboard.writeText(n.address)} className="text-xs px-2 py-1 bg-white/10 rounded">Copy</button>
                       <button onClick={() => { setTarget(n.address); setTab('dial'); }} className="text-xs px-2 py-1 bg-cyan-600 rounded">Call</button>
-                      <button onClick={async () => {
+                      {isAdmin && <button onClick={async () => {
                         if (!confirm('Delete ' + n.name + '?')) return;
                         const base = 'https://vexdial-production.up.railway.app';
                         const r = await fetch(`${base}/api/names/${encodeURIComponent(n.name)}`, {
@@ -527,7 +529,7 @@ export default function Home() {
                         const d = await r.json();
                         alert(d.ok ? 'Deleted' : d.error);
                         if (d.ok) loadNames();
-                      }} className="text-xs px-2 py-1 bg-red-600 rounded">Del</button>
+                      }} className="text-xs px-2 py-1 bg-red-600 rounded">Del</button>}
                     </div>
                   </div>
                 );
@@ -557,7 +559,7 @@ export default function Home() {
         )}
 
         
-            {myAddress && (
+            {isAdmin && (
               <div className="mt-4 pt-4 border-t border-white/10">
                 <p className="text-xs text-gray-500 mb-2">Premium requests (admin)</p>
                 <button onClick={async () => {
