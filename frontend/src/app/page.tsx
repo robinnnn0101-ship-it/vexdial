@@ -23,6 +23,7 @@ export default function Home() {
   const [missedCount, setMissedCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [localMsgs, setLocalMsgs] = useState<any[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const [namesList, setNamesList] = useState<any[]>([]);
   const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
   const [lastSeenMap, setLastSeenMap] = useState<Record<string, number>>({});
@@ -106,6 +107,10 @@ export default function Home() {
       localStorage.setItem('vexdial-msgs', JSON.stringify(updated));
     }
   }, [target]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [webrtc.chat, localMsgs, target]);
 
   useEffect(() => {
     const unread = [...webrtc.chat, ...localMsgs].filter((m: any) => m.from !== myAddress && m.status !== 'read');
@@ -421,7 +426,10 @@ export default function Home() {
       <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
         <header className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
           <div className="flex items-center gap-2">
-            <button onClick={() => setMenuOpen(true)} className="md:hidden p-2 bg-white/10 rounded-lg">☰</button>
+            <button onClick={() => setMenuOpen(true)} className="md:hidden p-2 bg-white/10 rounded-lg relative">
+              ☰
+              {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />}
+            </button>
             <div>
               <p className="text-xs text-gray-500 hidden sm:block">VexDial › {tab}</p>
               <h1 className="text-lg sm:text-xl font-semibold capitalize">{tab === 'dial' ? 'Call' : tab}</h1>
@@ -585,7 +593,7 @@ export default function Home() {
                 <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" />
               </div>
               <div className="bg-black/40 rounded-xl p-3 flex-1 min-h-[200px] max-h-80 overflow-y-auto text-sm mb-3 space-y-2">
-                {[...webrtc.chat, ...localMsgs].filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx).filter(m => {
+                {[...webrtc.chat, ...localMsgs].filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx).sort((a,b) => (a.ts||0) - (b.ts||0)).filter(m => {
                   const t = target.trim();
                   const mine = myAddress;
                   const match = m.to === t || m.from === t || (m.to === mine && (t === m.from || !t)) || (m.from === mine && (t === m.to || !t));
@@ -602,6 +610,7 @@ export default function Home() {
                   </div>
                 ))}
                 {!target && <p className="text-xs text-gray-500 text-center mt-8">Select a contact or enter an address</p>}
+                <div ref={chatEndRef} />
               </div>
               <form onSubmit={async e => { e.preventDefault(); if (target.trim()) { const addr = await resolve(target); webrtc.sendChat(chatInput, addr); setChatInput(''); } }} className="flex gap-2">
                 <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" placeholder="Message" />
