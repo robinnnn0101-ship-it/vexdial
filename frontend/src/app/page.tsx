@@ -500,58 +500,50 @@ export default function Home() {
         )}
 
         {tab === 'messages' && (
-          <div className="bg-white/5 rounded-2xl p-4 sm:p-6 border border-white/10">
-            <h2 className="font-medium mb-1">Messages</h2>
-            <p className="text-xs text-gray-400 mb-4">Private chat between two addresses. Enter address or .vex name.</p>
-            <div className="flex gap-2 mb-3">
-              <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" />
-              <button onClick={addContact} className="px-3 py-2 bg-white/10 rounded-xl text-xs">Add</button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="font-medium text-sm">Chats</h2>
+                <button onClick={addContact} className="text-xs px-+2 py-1 bg-cyan-600 rounded">+ Add</button>
+              </div>
+              <input value={msgSearch} onChange={e => setMsgSearch(e.target.value)} placeholder="Search contacts" className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs mb-3" />
+              <div className="space-y-1 max-h-80 overflow-y-auto">
+                {contacts.filter(c => !msgSearch || c.name?.toLowerCase().includes(msgSearch.toLowerCase()) || c.address.includes(msgSearch)).map(c => (
+                  <button key={c.address} onClick={() => setTarget(c.address)} className={`w-full text-left p-2 rounded-lg flex items-center gap-2 ${target === c.address ? 'bg-cyan-600/20' : 'hover:bg-white/5'}`}>
+                    <span className={`w-2 h-2 rounded-full ${onlineMap[c.address] ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm truncate">{c.name || c.address.slice(0,8)}</p>
+                      <p className="text-[10px] text-gray-500 font-mono">{c.address.slice(0,10)}…</p>
+                    </div>
+                  </button>
+                ))}
+                {contacts.length === 0 && <p className="text-xs text-gray-500">No contacts. Tap + Add</p>}
+              </div>
             </div>
-            <input value={msgSearch} onChange={e => setMsgSearch(e.target.value)} placeholder="Search" className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm mb-3" />
-            <div className="bg-black/40 rounded-xl p-3 h-40 overflow-y-auto text-sm mb-3 space-y-2">
-              {webrtc.chat.filter(m => (m.to === target || m.from === target) && (!msgSearch || m.text?.toLowerCase().includes(msgSearch.toLowerCase()))).map((m,i) => (
-                <div key={i} className={`flex ${m.from === myAddress ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] px-3 py-2 rounded-xl ${m.from === myAddress ? 'bg-cyan-600' : 'bg-white/10'}`}>
-                    {m.image && <img src={m.image} className="max-w-full rounded mb-1" />}
-                    {m.audio && <audio src={m.audio} controls className="max-w-full" />}
-                    <p>{m.text}</p>
-                    {m.from === myAddress && <p className="text-[10px] opacity-70 mt-0.5">{m.status || 'sent'}</p>}
+            <div className="md:col-span-2 bg-white/5 rounded-2xl p-4 border border-white/10 flex flex-col">
+              <div className="flex gap-2 mb-3">
+                <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" />
+              </div>
+              <div className="bg-black/40 rounded-xl p-3 flex-1 min-h-[200px] max-h-80 overflow-y-auto text-sm mb-3 space-y-2">
+                {webrtc.chat.filter(m => (m.to === target || m.from === target) && (!msgSearch || m.text?.toLowerCase().includes(msgSearch.toLowerCase()))).map((m,i) => (
+                  <div key={i} className={`flex ${m.from === myAddress ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] px-3 py-2 rounded-xl ${m.from === myAddress ? 'bg-cyan-600' : 'bg-white/10'}`}>
+                      {m.image && <img src={m.image} className="max-w-full rounded mb-1" />}
+                      {m.audio && <audio src={m.audio} controls className="max-w-full" />}
+                      <p>{m.text}</p>
+                      {m.from === myAddress && <p className="text-[10px] opacity-70 mt-0.5">{m.status || 'sent'}</p>}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+                {!target && <p className="text-xs text-gray-500 text-center mt-8">Select a contact or enter an address</p>}
+              </div>
+              <form onSubmit={async e => { e.preventDefault(); if (target.trim()) { const addr = await resolve(target); webrtc.sendChat(chatInput, addr); setChatInput(''); } }} className="flex gap-2">
+                <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" placeholder="Message" />
+                <label className="px-3 py-2 bg-white/10 rounded-xl text-sm cursor-pointer">📷<input type="file" accept="image/*" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (!f || !target.trim()) return; const addr = await resolve(target); const reader = new FileReader(); reader.onload = () => webrtc.sendChat('', addr, { image: reader.result }); reader.readAsDataURL(f); }} /></label>
+                <button type="button" onClick={async () => { if (!target.trim()) return; const addr = await resolve(target); const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); const rec = new MediaRecorder(stream); const chunks: Blob[] = []; rec.ondataavailable = e => chunks.push(e.data); rec.onstop = () => { const blob = new Blob(chunks, { type: 'audio/webm' }); const reader = new FileReader(); reader.onload = () => webrtc.sendChat('', addr, { audio: reader.result }); reader.readAsDataURL(blob); stream.getTracks().forEach(t => t.stop()); }; rec.start(); setTimeout(() => rec.stop(), 5000); }} className="px-3 py-2 bg-white/10 rounded-xl text-sm">🎤</button>
+                <button className="px-3 py-2 bg-cyan-600 rounded-xl text-sm">Send</button>
+              </form>
             </div>
-            <form onSubmit={async e => { e.preventDefault(); if (target.trim()) { const addr = await resolve(target); webrtc.sendChat(chatInput, addr); setChatInput(''); } }} className="flex gap-2">
-              <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" placeholder="Message" />
-              <label className="px-3 py-2 bg-white/10 rounded-xl text-sm cursor-pointer">
-                📷
-                <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                  const f = e.target.files?.[0]; if (!f || !target.trim()) return;
-                  const addr = await resolve(target);
-                  const reader = new FileReader();
-                  reader.onload = () => webrtc.sendChat('', addr, { image: reader.result });
-                  reader.readAsDataURL(f);
-                }} />
-              </label>
-              <button type="button" onClick={async () => {
-                if (!target.trim()) return alert('Enter address');
-                const addr = await resolve(target);
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const rec = new MediaRecorder(stream);
-                const chunks: Blob[] = [];
-                rec.ondataavailable = e => chunks.push(e.data);
-                rec.onstop = () => {
-                  const blob = new Blob(chunks, { type: 'audio/webm' });
-                  const reader = new FileReader();
-                  reader.onload = () => webrtc.sendChat('', addr, { audio: reader.result });
-                  reader.readAsDataURL(blob);
-                  stream.getTracks().forEach(t => t.stop());
-                };
-                rec.start();
-                setTimeout(() => rec.stop(), 5000);
-                alert('Recording 5 seconds…');
-              }} className="px-3 py-2 bg-white/10 rounded-xl text-sm">🎤</button>
-              <button className="px-3 py-2 bg-cyan-600 rounded-xl text-sm">Send</button>
-            </form>
           </div>
         )}
 
