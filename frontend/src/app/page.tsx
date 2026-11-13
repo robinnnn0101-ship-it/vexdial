@@ -137,10 +137,17 @@ export default function Home() {
   }, [webrtc.chat, localMsgs, target]);
 
   useEffect(() => {
-    const unread = [...webrtc.chat, ...localMsgs].filter((m: any) => m.from !== myAddress && m.status !== 'read');
+    const all = [...webrtc.chat, ...localMsgs];
+    const unread = all.filter((m: any) => {
+      if (m.from === myAddress) return false;
+      if (m.status === 'read') return false;
+      // if currently viewing this chat on messages tab, don't count
+      if (tab === 'messages' && target.trim() === m.from) return false;
+      return true;
+    });
     const unique = new Set(unread.map((m: any) => m.from));
     setUnreadCount(unique.size);
-  }, [webrtc.chat, localMsgs, myAddress]);
+  }, [webrtc.chat, localMsgs, myAddress, target, tab]);
 
   useEffect(() => {
     if (!contacts.length) return;
@@ -603,10 +610,14 @@ export default function Home() {
                 {contacts.filter(c => !msgSearch || c.name?.toLowerCase().includes(msgSearch.toLowerCase()) || c.address.includes(msgSearch)).map(c => (
                   <button key={c.address} onClick={() => setTarget(c.address)} className={`w-full text-left p-2 rounded-lg flex items-center gap-2 ${target === c.address ? 'bg-cyan-600/20' : 'hover:bg-white/5'}`}>
                     <span className={`w-2 h-2 rounded-full ${onlineMap[c.address] ? 'bg-emerald-400' : 'bg-gray-500'}`} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm truncate">{c.name || c.address.slice(0,8)}</p>
                       <p className="text-[10px] text-gray-500 font-mono">{c.address.slice(0,10)}…</p>
                     </div>
+                    {(() => {
+                      const n = [...webrtc.chat, ...localMsgs].filter(m => m.from === c.address && m.status !== 'read').length;
+                      return n > 0 && target !== c.address ? <span className="text-[10px] bg-red-500 text-white px-1.5 rounded-full">{n}</span> : null;
+                    })()}
                   </button>
                 ))}
                 {contacts.length === 0 && <p className="text-xs text-gray-500">No contacts. Tap + Add</p>}
@@ -629,7 +640,7 @@ export default function Home() {
                       {m.audio && <audio src={m.audio} controls className="max-w-full" />}
                       {m.from !== myAddress && <p className="text-[10px] text-cyan-300 mb-0.5">{contacts.find(c => c.address === m.from)?.name || m.from?.slice(0,8)}</p>}
                       <p>{m.text}</p>
-                      <p className="text-[10px] opacity-60 mt-0.5">{new Date(m.ts || Date.now()).toLocaleString()} {m.from === myAddress && (m.status || 'sent')}</p>
+                      <p className="text-[10px] opacity-60 mt-0.5">{new Date(m.ts || Date.now()).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} {m.from === myAddress && (m.status === 'read' ? '✓✓' : m.status === 'delivered' ? '✓✓' : '✓')}</p>
                     </div>
                   </div>
                 ))}
