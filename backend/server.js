@@ -14,6 +14,7 @@ const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } 
 
 const presence = new Map();
 const offlineMessages = new Map();
+const allMessages = [];
 
 function loadOffline() {
   try {
@@ -92,6 +93,13 @@ app.get('/api/online/:address', (req, res) => {
   const addr = decodeURIComponent(req.params.address).trim();
   const p = presence.get(addr);
   res.json({ online: !!p, status: p?.status || 'offline', lastSeen: p?.lastSeen || null });
+});
+
+
+app.get('/api/messages/:address', (req, res) => {
+  const addr = decodeURIComponent(req.params.address).trim();
+  const list = allMessages.filter(m => m.to === addr || m.from === addr).slice(-50);
+  res.json(list);
 });
 
 app.get('/api/names', (req, res) => {
@@ -239,6 +247,8 @@ io.on('connection', (socket) => {
       if (n && n.address) to = n.address;
     }
     const msg = { ...data, to, from, ts: data.ts || Date.now(), id: data.id || Date.now().toString(36), status: 'sent' };
+    allMessages.push(msg);
+    if (allMessages.length > 500) allMessages.shift();
     const target = presence.get(to);
     if (target && target.socketId && target.socketId !== 'http') {
       io.to(target.socketId).emit('chat-message', { ...msg, status: 'delivered' });
