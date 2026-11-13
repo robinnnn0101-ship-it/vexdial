@@ -531,7 +531,12 @@ export default function Home() {
                 <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" />
               </div>
               <div className="bg-black/40 rounded-xl p-3 flex-1 min-h-[200px] max-h-80 overflow-y-auto text-sm mb-3 space-y-2">
-                {webrtc.chat.filter(m => (m.to === target || m.from === target) && (!msgSearch || m.text?.toLowerCase().includes(msgSearch.toLowerCase()))).map((m,i) => (
+                {webrtc.chat.filter(m => {
+                  const t = target.trim();
+                  const mine = myAddress;
+                  const match = m.to === t || m.from === t || m.to === mine || m.from === mine;
+                  return match && (!msgSearch || (m.text||'').toLowerCase().includes(msgSearch.toLowerCase()));
+                }).map((m,i) => (
                   <div key={i} className={`flex ${m.from === myAddress ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] px-3 py-2 rounded-xl ${m.from === myAddress ? 'bg-cyan-600' : 'bg-white/10'}`}>
                       {m.image && <img src={m.image} className="max-w-full rounded mb-1" />}
