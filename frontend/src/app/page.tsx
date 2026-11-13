@@ -22,6 +22,7 @@ export default function Home() {
   const [msgSearch, setMsgSearch] = useState('');
   const [missedCount, setMissedCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [localMsgs, setLocalMsgs] = useState<any[]>([]);
   const [namesList, setNamesList] = useState<any[]>([]);
   const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
   const [lastSeenMap, setLastSeenMap] = useState<Record<string, number>>({});
@@ -54,6 +55,32 @@ export default function Home() {
     const hist = JSON.parse(localStorage.getItem('vexdial-history') || '[]');
     setMissedCount(hist.filter((h: any) => h.type === 'missed').length);
   }, [history]);
+
+
+  useEffect(() => {
+    if (!myAddress) return;
+    const base = 'https://vexdial-production.up.railway.app';
+    const load = async () => {
+      try {
+        const r = await fetch(`${base}/api/messages/${encodeURIComponent(myAddress)}`);
+        const list = await r.json();
+        if (Array.isArray(list) && list.length) {
+          // merge into chat via a custom event or just rely on socket
+          // store in localStorage for display
+          const existing = JSON.parse(localStorage.getItem('vexdial-msgs') || '[]');
+          const merged = [...existing];
+          list.forEach((m: any) => {
+            if (!merged.find((x: any) => x.id === m.id)) merged.push(m);
+          });
+          localStorage.setItem('vexdial-msgs', JSON.stringify(merged.slice(-100)));
+          setLocalMsgs(merged.slice(-100));
+        }
+      } catch {}
+    };
+    load();
+    const i = setInterval(load, 3000);
+    return () => clearInterval(i);
+  }, [myAddress]);
 
   useEffect(() => {
     setUnreadCount(webrtc.chat.filter((m: any) => m.from !== myAddress && m.status !== 'read').length);
@@ -531,10 +558,10 @@ export default function Home() {
                 <input value={target} onChange={e => setTarget(e.target.value)} placeholder="Address or name.vex" className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" />
               </div>
               <div className="bg-black/40 rounded-xl p-3 flex-1 min-h-[200px] max-h-80 overflow-y-auto text-sm mb-3 space-y-2">
-                {webrtc.chat.filter(m => {
+                {[...webrtc.chat, ...localMsgs].filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx).filter(m => {
                   const t = target.trim();
                   const mine = myAddress;
-                  const match = m.to === t || m.from === t || m.to === mine || m.from === mine;
+                  const match = m.to === t || m.from === t || (m.to === mine && (t === m.from || !t)) || (m.from === mine && (t === m.to || !t));
                   return match && (!msgSearch || (m.text||'').toLowerCase().includes(msgSearch.toLowerCase()));
                 }).map((m,i) => (
                   <div key={i} className={`flex ${m.from === myAddress ? 'justify-end' : 'justify-start'}`}>
