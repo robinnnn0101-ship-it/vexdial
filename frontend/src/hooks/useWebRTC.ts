@@ -338,15 +338,18 @@ export function useWebRTC(myAddress: string | null) {
 
   const startScreenShare = async () => {
     try {
-      if (!roomRef.current) return;
-      await roomRef.current.localParticipant.setScreenShareEnabled(true);
-    } catch {}
+      if (!roomRef.current) return alert('Start a call first');
+      const enabled = roomRef.current.localParticipant.isScreenShareEnabled;
+      await roomRef.current.localParticipant.setScreenShareEnabled(!enabled);
+    } catch (e: any) {
+      alert('Screen share failed: ' + (e?.message || 'permission denied'));
+    }
   };
 
-  const sendChat = (text: string, to?: string) => {
-    if (!text.trim()) return;
+  const sendChat = (text: string, to?: string, extra?: any) => {
     const dest = (to || remoteAddress || '').trim();
     if (!dest) return alert('Enter address first');
+    if (!text.trim() && !extra) return;
     const msg = {
       from: myAddress,
       to: dest,
@@ -354,6 +357,7 @@ export function useWebRTC(myAddress: string | null) {
       ts: Date.now(),
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       status: 'sent',
+      ...extra,
     };
     socketRef.current?.emit('chat-message', msg);
     setChat(p => [...p, msg]);
