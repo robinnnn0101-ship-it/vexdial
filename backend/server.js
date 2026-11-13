@@ -210,12 +210,14 @@ io.on('connection', (socket) => {
     if (target && target.socketId !== 'http') io.to(target.socketId).emit('call-ended', { from, callId });
   });
 
-  socket.on('chat-message', ({ to, from, text }) => {
-    if (!to || !from || !text) return;
-    const msg = { from, to, text, ts: Date.now(), id: Date.now().toString(36) };
-    const target = presence.get(String(to).trim());
-    if (target && target.socketId !== 'http') {
-      io.to(target.socketId).emit('chat-message', msg);
+  socket.on('chat-message', (data) => {
+    const to = String(data?.to || '').trim();
+    const from = String(data?.from || '').trim();
+    if (!to || !from) return;
+    const msg = { ...data, to, from, ts: data.ts || Date.now(), id: data.id || Date.now().toString(36), status: 'sent' };
+    const target = presence.get(to);
+    if (target && target.socketId && target.socketId !== 'http') {
+      io.to(target.socketId).emit('chat-message', { ...msg, status: 'delivered' });
       socket.emit('msg-status', { id: msg.id, status: 'delivered' });
     } else {
       const list = offlineMessages.get(to) || [];
