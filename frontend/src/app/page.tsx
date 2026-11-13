@@ -133,7 +133,8 @@ export default function Home() {
   }, [target, tab]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = chatEndRef.current?.parentElement;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [webrtc.chat, localMsgs, target]);
 
   useEffect(() => {
