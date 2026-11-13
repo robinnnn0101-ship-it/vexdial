@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const fs = require('fs');
 const NAMES_FILE = process.env.NAMES_FILE || '/tmp/vex-names.json';
+const OFFLINE_FILE = process.env.OFFLINE_FILE || '/tmp/vex-offline.json';
 
 const app = express();
 app.use(cors());
@@ -13,6 +14,23 @@ const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } 
 
 const presence = new Map();
 const offlineMessages = new Map();
+
+function loadOffline() {
+  try {
+    if (fs.existsSync(OFFLINE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(OFFLINE_FILE, 'utf8'));
+      for (const [k, v] of Object.entries(data)) offlineMessages.set(k, v);
+    }
+  } catch {}
+}
+function saveOffline() {
+  try {
+    const obj = Object.fromEntries(offlineMessages);
+    fs.writeFileSync(OFFLINE_FILE, JSON.stringify(obj));
+  } catch {}
+}
+loadOffline();
+
 const missedCalls = new Map();
 const names = new Map();
 
@@ -155,6 +173,7 @@ function deliverOffline(addr, socketId) {
   if (msgs.length) {
     io.to(socketId).emit('offline-messages', msgs);
     offlineMessages.delete(addr);
+    saveOffline();
   }
   if (calls.length) {
     io.to(socketId).emit('missed-calls', calls);
@@ -223,6 +242,7 @@ io.on('connection', (socket) => {
       const list = offlineMessages.get(to) || [];
       list.push(msg);
       offlineMessages.set(to, list);
+      saveOffline();
       socket.emit('msg-status', { id: msg.id, status: 'sent' });
     }
   });
