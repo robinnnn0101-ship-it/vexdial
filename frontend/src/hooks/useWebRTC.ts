@@ -148,6 +148,9 @@ export function useWebRTC(myAddress: string | null) {
       setChat(p => [...p, msg]);
       if (msg.from !== myAddress) {
         socket.emit('msg-read', { to: msg.from, id: msg.id });
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification('New message', { body: (msg.text || 'Media').slice(0, 60) });
+        }
       }
     });
     socket.on('offline-messages', (msgs) => {
