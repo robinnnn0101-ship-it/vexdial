@@ -32,6 +32,7 @@ export function useWebRTC(myAddress: string | null) {
   const [callStart, setCallStart] = useState<number | null>(null);
   const [chat, setChat] = useState<any[]>([]);
   const [connected, setConnected] = useState(false);
+  const [quality, setQuality] = useState(3);
   const [isVideoCall, setIsVideoCall] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
@@ -120,6 +121,9 @@ export function useWebRTC(myAddress: string | null) {
       isVideoCallRef.current = !!(offer && offer.video);
       setIsVideoCall(!!(offer && offer.video));
       setStatus('ringing');
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('Incoming ' + (offer?.video ? 'Video' : 'Voice') + ' Call', { body: from?.slice(0,12) + '…' });
+      }
       stopRing();
       ringInterval.current = setInterval(() => playRingtone(), 1400);
     });
@@ -214,7 +218,7 @@ export function useWebRTC(myAddress: string | null) {
       const room = new Room({ adaptiveStream: true, dynacast: true, autoSubscribe: true });
 
       const refresh = () => buildRemote(room);
-      room.on(RoomEvent.TrackSubscribed, refresh);
+      room.on(RoomEvent.TrackSubscribed, () => { refresh(); setQuality(4); });
       room.on(RoomEvent.TrackUnsubscribed, refresh);
       room.on(RoomEvent.ParticipantConnected, refresh);
       room.on(RoomEvent.TrackPublished, refresh);
@@ -365,6 +369,7 @@ export function useWebRTC(myAddress: string | null) {
     chat,
     callStart,
     connected,
+    quality,
     isVideoCall,
     startCall,
     acceptCall,
