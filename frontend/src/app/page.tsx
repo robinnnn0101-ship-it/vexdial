@@ -82,6 +82,19 @@ export default function Home() {
     return () => clearInterval(i);
   }, [myAddress]);
 
+
+  useEffect(() => {
+    const incoming = [...webrtc.chat, ...localMsgs].filter(m => m.from && m.from !== myAddress);
+    if (!incoming.length) return;
+    const existing = new Set(contacts.map(c => c.address));
+    const newOnes = incoming.filter(m => !existing.has(m.from)).map(m => ({ address: m.from, name: m.from.slice(0,8) }));
+    if (newOnes.length) {
+      const next = [...newOnes, ...contacts];
+      setContacts(next);
+      localStorage.setItem('vexdial-contacts', JSON.stringify(next));
+    }
+  }, [webrtc.chat, localMsgs, myAddress]);
+
   useEffect(() => {
     setUnreadCount(webrtc.chat.filter((m: any) => m.from !== myAddress && m.status !== 'read').length);
   }, [webrtc.chat, myAddress]);
@@ -568,6 +581,7 @@ export default function Home() {
                     <div className={`max-w-[80%] px-3 py-2 rounded-xl ${m.from === myAddress ? 'bg-cyan-600' : 'bg-white/10'}`}>
                       {m.image && <img src={m.image} className="max-w-full rounded mb-1" />}
                       {m.audio && <audio src={m.audio} controls className="max-w-full" />}
+                      {m.from !== myAddress && <p className="text-[10px] text-cyan-300 mb-0.5">{contacts.find(c => c.address === m.from)?.name || m.from?.slice(0,8)}</p>}
                       <p>{m.text}</p>
                       <p className="text-[10px] opacity-60 mt-0.5">{new Date(m.ts || Date.now()).toLocaleString()} {m.from === myAddress && (m.status || 'sent')}</p>
                     </div>
