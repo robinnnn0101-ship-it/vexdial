@@ -78,7 +78,7 @@ export default function Home() {
       } catch {}
     };
     load();
-    const i = setInterval(load, 3000);
+    const i = setInterval(load, 2000);
     return () => clearInterval(i);
   }, [myAddress]);
 
@@ -95,9 +95,23 @@ export default function Home() {
     }
   }, [webrtc.chat, localMsgs, myAddress]);
 
+
   useEffect(() => {
-    setUnreadCount(webrtc.chat.filter((m: any) => m.from !== myAddress && m.status !== 'read').length);
-  }, [webrtc.chat, myAddress]);
+    if (!target || !myAddress) return;
+    const t = target.trim();
+    // mark messages from this contact as read
+    const updated = localMsgs.map(m => (m.from === t && m.to === myAddress) ? { ...m, status: 'read' } : m);
+    if (JSON.stringify(updated) !== JSON.stringify(localMsgs)) {
+      setLocalMsgs(updated);
+      localStorage.setItem('vexdial-msgs', JSON.stringify(updated));
+    }
+  }, [target]);
+
+  useEffect(() => {
+    const unread = [...webrtc.chat, ...localMsgs].filter((m: any) => m.from !== myAddress && m.status !== 'read');
+    const unique = new Set(unread.map((m: any) => m.from));
+    setUnreadCount(unique.size);
+  }, [webrtc.chat, localMsgs, myAddress]);
 
   useEffect(() => {
     if (!contacts.length) return;
