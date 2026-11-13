@@ -128,6 +128,19 @@ app.get('/api/names/requests', (req, res) => {
   res.json(nameRequests);
 });
 
+
+app.post('/api/names/approve', (req, res) => {
+  const admin = String(req.headers['x-admin'] || '');
+  if (ADMIN && admin !== ADMIN) return res.json({ ok: false, error: 'admin only' });
+  const name = String(req.body?.name || '').toLowerCase().trim();
+  const address = String(req.body?.address || '').trim();
+  if (!name || !address) return res.json({ ok: false, error: 'missing' });
+  if (names.has(name)) return res.json({ ok: false, error: 'taken' });
+  names.set(name, { address, registered: Date.now(), premium: true });
+  saveNames();
+  res.json({ ok: true, name });
+});
+
 app.post('/api/register', (req, res) => {
   const address = String(req.body?.address || '').trim();
   if (!address) return res.json({ ok: false });
