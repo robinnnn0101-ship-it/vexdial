@@ -21,6 +21,7 @@ export default function Home() {
   const [reactions, setReactions] = useState<string[]>([]);
   const [msgSearch, setMsgSearch] = useState('');
   const [missedCount, setMissedCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [namesList, setNamesList] = useState<any[]>([]);
   const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
   const [lastSeenMap, setLastSeenMap] = useState<Record<string, number>>({});
@@ -53,6 +54,10 @@ export default function Home() {
     const hist = JSON.parse(localStorage.getItem('vexdial-history') || '[]');
     setMissedCount(hist.filter((h: any) => h.type === 'missed').length);
   }, [history]);
+
+  useEffect(() => {
+    setUnreadCount(webrtc.chat.filter((m: any) => m.from !== myAddress && m.status !== 'read').length);
+  }, [webrtc.chat, myAddress]);
 
   useEffect(() => {
     if (!contacts.length) return;
@@ -349,6 +354,7 @@ export default function Home() {
             <button key={t} onClick={() => { setTab(t); setMenuOpen(false); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm capitalize ${tab===t ? 'bg-cyan-600/20 text-cyan-400' : 'text-gray-400 hover:bg-white/5'}`}>
               {t === 'contacts' ? 'VexBook' : t === 'how' ? 'How to Use' : t}
               {t === 'history' && missedCount > 0 && <span className="ml-2 text-xs bg-red-500 text-white px-1.5 rounded-full">{missedCount}</span>}
+              {t === 'messages' && unreadCount > 0 && <span className="ml-2 text-xs bg-red-500 text-white px-1.5 rounded-full">{unreadCount}</span>}
             </button>
           ))}
         </nav>
@@ -531,7 +537,7 @@ export default function Home() {
                       {m.image && <img src={m.image} className="max-w-full rounded mb-1" />}
                       {m.audio && <audio src={m.audio} controls className="max-w-full" />}
                       <p>{m.text}</p>
-                      {m.from === myAddress && <p className="text-[10px] opacity-70 mt-0.5">{m.status || 'sent'}</p>}
+                      <p className="text-[10px] opacity-60 mt-0.5">{new Date(m.ts || Date.now()).toLocaleString()} {m.from === myAddress && (m.status || 'sent')}</p>
                     </div>
                   </div>
                 ))}
