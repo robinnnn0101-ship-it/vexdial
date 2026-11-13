@@ -23,6 +23,7 @@ export default function Home() {
   const [missedCount, setMissedCount] = useState(0);
   const [namesList, setNamesList] = useState<any[]>([]);
   const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
+  const [lastSeenMap, setLastSeenMap] = useState<Record<string, number>>({});
   const [nameSearch, setNameSearch] = useState('');
   const [myName, setMyName] = useState('');
   const ADMIN_ADDR = 'DdDw58qmGXu3vqaV77s3gBVwSDPA1YZ9TxMPvfidNfd3';
@@ -51,6 +52,7 @@ export default function Home() {
         const r = await fetch(`${base}/api/online/${encodeURIComponent(c.address)}`);
         const d = await r.json();
         setOnlineMap(m => ({ ...m, [c.address]: !!d.online }));
+        if (d.lastSeen) setLastSeenMap(m => ({ ...m, [c.address]: d.lastSeen }));
       } catch {}
     });
   }, [contacts]);
@@ -389,6 +391,12 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-3">
                   <button onClick={() => call(false)} className="py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium text-sm">📞 VexVoice</button>
                   <button onClick={() => call(true)} className="py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-medium text-sm">📹 VexVideo</button>
+                  <button onClick={async () => {
+                    const extra = prompt('Add third person (address or .vex)');
+                    if (!extra) return;
+                    const addr = await resolve(extra);
+                    if (addr) webrtc.startCall(addr, false);
+                  }} className="col-span-2 py-2 bg-white/10 rounded-xl text-sm">+ Group (3)</button>
                 </div>
               </div>
             </div>
@@ -445,6 +453,7 @@ export default function Home() {
                   <div>
                     <p className="text-sm truncate">{c.name || 'Unnamed'}</p>
                     <p className="text-xs text-gray-500 font-mono">{c.address.slice(0,10)}…</p>
+                    <p className="text-[10px] text-gray-600">{onlineMap[c.address] ? 'online' : (lastSeenMap[c.address] ? 'seen ' + Math.max(1, Math.floor((Date.now()-lastSeenMap[c.address])/60000)) + 'm ago' : '')}</p>
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
@@ -483,6 +492,8 @@ export default function Home() {
               {webrtc.chat.filter(m => (m.to === target || m.from === target) && (!msgSearch || m.text?.toLowerCase().includes(msgSearch.toLowerCase()))).map((m,i) => (
                 <div key={i} className={`flex ${m.from === myAddress ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] px-3 py-2 rounded-xl ${m.from === myAddress ? 'bg-cyan-600' : 'bg-white/10'}`}>
+                    {m.image && <img src={m.image} className="max-w-full rounded mb-1" />}
+                    {m.audio && <audio src={m.audio} controls className="max-w-full" />}
                     <p>{m.text}</p>
                     {m.from === myAddress && <p className="text-[10px] opacity-70 mt-0.5">{m.status || 'sent'}</p>}
                   </div>
@@ -491,6 +502,34 @@ export default function Home() {
             </div>
             <form onSubmit={async e => { e.preventDefault(); if (target.trim()) { const addr = await resolve(target); webrtc.sendChat(chatInput, addr); setChatInput(''); } }} className="flex gap-2">
               <input value={chatInput} onChange={e => setChatInput(e.target.value)} className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm" placeholder="Message" />
+              <label className="px-3 py-2 bg-white/10 rounded-xl text-sm cursor-pointer">
+                📷
+                <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                  const f = e.target.files?.[0]; if (!f || !target.trim()) return;
+                  const addr = await resolve(target);
+                  const reader = new FileReader();
+                  reader.onload = () => webrtc.sendChat('', addr, { image: reader.result });
+                  reader.readAsDataURL(f);
+                }} />
+              </label>
+              <button type="button" onClick={async () => {
+                if (!target.trim()) return alert('Enter address');
+                const addr = await resolve(target);
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const rec = new MediaRecorder(stream);
+                const chunks: Blob[] = [];
+                rec.ondataavailable = e => chunks.push(e.data);
+                rec.onstop = () => {
+                  const blob = new Blob(chunks, { type: 'audio/webm' });
+                  const reader = new FileReader();
+                  reader.onload = () => webrtc.sendChat('', addr, { audio: reader.result });
+                  reader.readAsDataURL(blob);
+                  stream.getTracks().forEach(t => t.stop());
+                };
+                rec.start();
+                setTimeout(() => rec.stop(), 5000);
+                alert('Recording 5 seconds…');
+              }} className="px-3 py-2 bg-white/10 rounded-xl text-sm">🎤</button>
               <button className="px-3 py-2 bg-cyan-600 rounded-xl text-sm">Send</button>
             </form>
           </div>
