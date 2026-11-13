@@ -122,13 +122,15 @@ export default function Home() {
   useEffect(() => {
     if (!target || !myAddress) return;
     const t = target.trim();
-    // mark messages from this contact as read
+    // Only mark as read if this chat is open
+    const toMark = [...webrtc.chat, ...localMsgs].filter(m => m.from === t && m.to === myAddress && m.status !== 'read');
+    toMark.forEach(m => webrtc.markRead?.(m.from, m.id));
     const updated = localMsgs.map(m => (m.from === t && m.to === myAddress) ? { ...m, status: 'read' } : m);
     if (JSON.stringify(updated) !== JSON.stringify(localMsgs)) {
       setLocalMsgs(updated);
       localStorage.setItem('vexdial-msgs', JSON.stringify(updated));
     }
-  }, [target]);
+  }, [target, tab]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
