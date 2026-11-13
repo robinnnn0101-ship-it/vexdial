@@ -145,9 +145,8 @@ export function useWebRTC(myAddress: string | null) {
     });
 
     socket.on('chat-message', (msg) => {
-      setChat(p => [...p, msg]);
+      setChat(p => [...p, { ...msg, status: msg.status || 'delivered' }]);
       if (msg.from !== myAddress) {
-        socket.emit('msg-read', { to: msg.from, id: msg.id });
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification('New message', { body: (msg.text || 'Media').slice(0, 60) });
         }
@@ -349,6 +348,10 @@ export function useWebRTC(myAddress: string | null) {
     }
   };
 
+  const markRead = (from: string, id: string) => {
+    socketRef.current?.emit('msg-read', { to: from, id });
+  };
+
   const sendChat = (text: string, to?: string, extra?: any) => {
     const dest = (to || remoteAddress || '').trim();
     if (!dest) return alert('Enter address first');
@@ -385,6 +388,7 @@ export function useWebRTC(myAddress: string | null) {
     toggleMute,
     toggleCamera,
     startScreenShare,
+    markRead,
     sendChat,
   };
 }
