@@ -230,9 +230,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chat-message', (data) => {
-    const to = String(data?.to || '').trim();
+    let to = String(data?.to || '').trim();
     const from = String(data?.from || '').trim();
     if (!to || !from) return;
+    // Resolve .vex name to address
+    if (to.endsWith('.vex')) {
+      const n = names.get(to.toLowerCase());
+      if (n && n.address) to = n.address;
+    }
     const msg = { ...data, to, from, ts: data.ts || Date.now(), id: data.id || Date.now().toString(36), status: 'sent' };
     const target = presence.get(to);
     if (target && target.socketId && target.socketId !== 'http') {
