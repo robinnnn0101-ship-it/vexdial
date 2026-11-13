@@ -23,6 +23,7 @@ export default function Home() {
   const [missedCount, setMissedCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [localMsgs, setLocalMsgs] = useState<any[]>([]);
+  const [loadingChat, setLoadingChat] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [namesList, setNamesList] = useState<any[]>([]);
   const [onlineMap, setOnlineMap] = useState<Record<string, boolean>>({});
@@ -96,6 +97,27 @@ export default function Home() {
     }
   }, [webrtc.chat, localMsgs, myAddress]);
 
+
+
+  useEffect(() => {
+    if (!target || !myAddress) return;
+    const t = target.trim();
+    setLoadingChat(true);
+    const base = 'https://vexdial-production.up.railway.app';
+    fetch(`${base}/api/messages/${encodeURIComponent(myAddress)}`)
+      .then(r => r.json())
+      .then(list => {
+        if (Array.isArray(list)) {
+          const conv = list.filter((m: any) => m.from === t || m.to === t);
+          setLocalMsgs(prev => {
+            const merged = [...prev];
+            conv.forEach((m: any) => { if (!merged.find((x: any) => x.id === m.id)) merged.push(m); });
+            return merged;
+          });
+        }
+      })
+      .finally(() => setLoadingChat(false));
+  }, [target]);
 
   useEffect(() => {
     if (!target || !myAddress) return;
@@ -609,7 +631,8 @@ export default function Home() {
                     </div>
                   </div>
                 ))}
-                {!target && <p className="text-xs text-gray-500 text-center mt-8">Select a contact or enter an address</p>}
+                {loadingChat && <p className="text-xs text-gray-500 text-center">Loading old chats…</p>}
+                {!target && !loadingChat && <p className="text-xs text-gray-500 text-center mt-8">Select a contact or enter an address</p>}
                 <div ref={chatEndRef} />
               </div>
               <form onSubmit={async e => { e.preventDefault(); if (target.trim()) { const addr = await resolve(target); webrtc.sendChat(chatInput, addr); setChatInput(''); } }} className="flex gap-2">
