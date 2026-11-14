@@ -132,10 +132,16 @@ export default function Home() {
     }
   }, [target, tab]);
 
+  const prevLen = useRef(0);
   useEffect(() => {
+    const len = webrtc.chat.length + localMsgs.length;
     const el = chatEndRef.current?.parentElement;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [webrtc.chat, localMsgs, target]);
+    if (el && len > prevLen.current) {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      if (nearBottom || prevLen.current === 0) el.scrollTop = el.scrollHeight;
+    }
+    prevLen.current = len;
+  }, [webrtc.chat, localMsgs]);
 
   useEffect(() => {
     const all = [...webrtc.chat, ...localMsgs];
