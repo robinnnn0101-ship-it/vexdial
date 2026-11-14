@@ -415,6 +415,7 @@ export default function Home() {
           <button onClick={webrtc.toggleMute} className="px-4 py-2 bg-white/10 rounded-full text-xs sm:text-sm">{webrtc.muted ? 'Unmute' : 'Mute'}</button>
           <button onClick={webrtc.toggleCamera} className="px-4 py-2 bg-white/10 rounded-full text-xs sm:text-sm">{webrtc.cameraOff ? 'Cam On' : 'Cam Off'}</button>
           <button onClick={webrtc.startScreenShare} className="px-4 py-2 bg-white/10 rounded-full text-xs sm:text-sm">Share</button>
+          {/iPhone|iPad|iPod/i.test(navigator.userAgent) && <span className="text-[10px] text-gray-500 ml-2">iPhone: use a laptop for screen share</span>}
           <button onClick={() => { if (webrtc.callStart) logCall(webrtc.remoteAddress || target, webrtc.status === 'calling' ? 'outgoing' : 'incoming', Math.floor((Date.now() - webrtc.callStart) / 1000)); webrtc.hangup(); }} className="px-4 py-2 bg-red-600 rounded-full text-xs sm:text-sm font-medium">End</button>
         </div>
         <div className="max-w-xl mx-auto">
@@ -770,6 +771,7 @@ export default function Home() {
             <div>
               <p className="text-cyan-400 font-medium mb-1">2. Call anyone</p>
               <p className="text-gray-400">Enter their wallet address or .vex name and tap VexVoice or VexVideo. Works across chains — Solana can call Ethereum, BNB, etc.</p>
+              <p className="text-gray-500 text-xs mt-2">Screen share works on laptop and Android Chrome. iPhone users: use a laptop for screen share.</p>
             </div>
             <div>
               <p className="text-cyan-400 font-medium mb-1">3. Get a .vex name</p>
