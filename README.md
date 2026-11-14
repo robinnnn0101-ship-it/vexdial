@@ -1,74 +1,49 @@
 # VexDial
 
-**Wallet-to-wallet encrypted calls.**
+**Your wallet is your phone number.**
 
-Your Solana wallet is your phone number.
-
-Unlimited free audio and video calls between Solana wallets. End-to-end encrypted via WebRTC. Dark neon UI.
+Interchain voice, video, and messaging between any wallets. No phone numbers. No accounts. End-to-end encrypted.
 
 **Powered by Vexlore**
 
 ---
 
-## Features
+## What you can do
 
-- Connect Phantom or Solflare
-- Call by wallet address
-- **VexVoice** (audio) and **VexVideo** (video)
-- Accept / Reject incoming calls
-- Ringtone and ringback
-- In-call chat
-- Screen share
-- VexBook (contacts)
-- Call history
-- @VexDial on X
+- **Call any wallet** — Solana, Ethereum, BNB, and more
+- **Create a Vex wallet** — quantum-proof, built in
+- **Register a .vex name** — call and message by name instead of a long address
+- **VexVoice** — clear audio calls
+- **VexVideo** — video with camera and screen share
+- **Messages** — private chat, images, and voice notes
+- **VexBook** — save contacts, see who is online
+- **Call history** — missed calls and redial
+- Works with Phantom, MetaMask, Trust Wallet, and more
+
+---
+
+## Privacy
+
+- Calls are end-to-end encrypted
+- We never see your private keys
+- Media stays between you and the other person
+- No phone number required
+- No central account
 
 ---
 
 ## Live
 
-Frontend: [vexdial-3gfh-xi.vercel.app](https://vexdial-3gfh-xi.vercel.app)
+[Open VexDial](https://vexdial-3gfh-xi.vercel.app)
 
 ---
 
-## Local Development
+## Links
 
-### Backend
-```bash
-cd backend
-npm install
-node server.js
-```
-
-### Frontend
-```bash
-cd frontend
-npm install
-echo "NEXT_PUBLIC_SIGNALING_URL=http://localhost:3001" > .env.local
-npm run dev
-```
+- [X @VexDial](https://x.com/VexDial)
+- [Telegram](https://t.me/vexdial)
+- [GitHub](https://github.com/robinnnn0101-ship-it/vexdial)
 
 ---
 
-## Deploy
-
-### Signaling (Render)
-- Root: `backend`
-- Start: `node server.js`
-
-### Frontend (Vercel)
-- Root: `frontend`
-- Env: `NEXT_PUBLIC_SIGNALING_URL` = your Render URL
-
----
-
-## Notes
-
-- Media is peer-to-peer and encrypted
-- Signaling server only exchanges connection data
-- Free hosting may sleep after inactivity
-- Wallet browsers can block camera/mic — use Chrome or Safari for best results
-
----
-
-VexDial by Vexlore. Peer-to-peer. Encrypted. Free.
+VexDial by Vexlore. Interchain. Private. Free.
