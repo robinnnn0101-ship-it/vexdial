@@ -132,16 +132,11 @@ export default function Home() {
     }
   }, [target, tab]);
 
-  const prevLen = useRef(0);
   useEffect(() => {
-    const len = webrtc.chat.length + localMsgs.length;
+    // Scroll to bottom only once when opening a chat
     const el = chatEndRef.current?.parentElement;
-    if (el && len > prevLen.current) {
-      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-      if (nearBottom || prevLen.current === 0) el.scrollTop = el.scrollHeight;
-    }
-    prevLen.current = len;
-  }, [webrtc.chat, localMsgs]);
+    if (el && target) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 100);
+  }, [target]);
 
   useEffect(() => {
     const all = [...webrtc.chat, ...localMsgs];
