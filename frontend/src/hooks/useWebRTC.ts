@@ -339,12 +339,16 @@ export function useWebRTC(myAddress: string | null) {
   };
 
   const startScreenShare = async () => {
+    if (!roomRef.current) return alert('Start a call first');
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile || !navigator.mediaDevices?.getDisplayMedia) {
+      return alert('Screen share is not supported on this phone browser. Use a laptop, or open in Chrome on Android.');
+    }
     try {
-      if (!roomRef.current) return alert('Start a call first');
       const enabled = roomRef.current.localParticipant.isScreenShareEnabled;
       await roomRef.current.localParticipant.setScreenShareEnabled(!enabled);
     } catch (e: any) {
-      alert('Screen share failed: ' + (e?.message || 'permission denied'));
+      alert('Screen share failed. Try Chrome on desktop, or allow the permission.');
     }
   };
 
