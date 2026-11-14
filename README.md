@@ -7,7 +7,7 @@
 Interchain voice, video, and messaging between any wallets.  
 No phone numbers. No accounts. End-to-end encrypted.
 
-[![Live](https://img.shields.io/badge/Live-vexdial-00d2ff)](https://vexdial-3gfh-xi.vercel.app)
+[![Live](https://img.shields.io/badge/Live-vexdial-00d2ff)](https://vexdial.xyz)
 [![X](https://img.shields.io/badge/X-@VexDial-black)](https://x.com/VexDial)
 [![Telegram](https://img.shields.io/badge/Telegram-vexdial-26A5E4)](https://t.me/vexdial)
 
@@ -84,7 +84,7 @@ That's it.
 
 ## Live
 
-**[Open VexDial](https://vexdial-3gfh-xi.vercel.app)**
+**[Open VexDial](https://vexdial.xyz)**
 
 Works on desktop and mobile browsers.  
 Best experience in Chrome or Safari.
@@ -93,7 +93,7 @@ Best experience in Chrome or Safari.
 
 ## Links
 
-- **App** — [vexdial-3gfh-xi.vercel.app](https://vexdial-3gfh-xi.vercel.app)
+- **App** — [vexdial-3gfh-xi.vercel.app](https://vexdial.xyz)
 - **X** — [@VexDial](https://x.com/VexDial)
 - **Telegram** — [t.me/vexdial](https://t.me/vexdial)
 - **GitHub** — [robinnnn0101-ship-it/vexdial](https://github.com/robinnnn0101-ship-it/vexdial)
